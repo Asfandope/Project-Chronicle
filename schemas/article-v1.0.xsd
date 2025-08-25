@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+           targetNamespace="https://magazine-extractor.com/schemas/article/v1.0"
+           xmlns:art="https://magazine-extractor.com/schemas/article/v1.0"
+           elementFormDefault="qualified">
+
+  <!-- Root element -->
+  <xs:element name="article" type="art:ArticleType"/>
+
+  <!-- Article type definition -->
+  <xs:complexType name="ArticleType">
+    <xs:sequence>
+      <xs:element name="title" type="art:ConfidenceTextType"/>
+      <xs:element name="contributors" type="art:ContributorsType" minOccurs="0"/>
+      <xs:element name="body" type="art:BodyType"/>
+      <xs:element name="media" type="art:MediaType" minOccurs="0"/>
+      <xs:element name="provenance" type="art:ProvenanceType"/>
+    </xs:sequence>
+    <xs:attribute name="id" type="xs:string" use="required"/>
+    <xs:attribute name="brand" type="xs:string" use="required"/>
+    <xs:attribute name="issue" type="xs:date" use="required"/>
+    <xs:attribute name="page_start" type="xs:positiveInteger" use="required"/>
+    <xs:attribute name="page_end" type="xs:positiveInteger" use="required"/>
+  </xs:complexType>
+
+  <!-- Contributors -->
+  <xs:complexType name="ContributorsType">
+    <xs:sequence>
+      <xs:element name="contributor" type="art:ContributorType" maxOccurs="unbounded"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:complexType name="ContributorType">
+    <xs:sequence>
+      <xs:element name="name" type="xs:string"/>
+      <xs:element name="normalized_name" type="xs:string"/>
+    </xs:sequence>
+    <xs:attribute name="role" use="required">
+      <xs:simpleType>
+        <xs:restriction base="xs:string">
+          <xs:enumeration value="author"/>
+          <xs:enumeration value="photographer"/>
+          <xs:enumeration value="illustrator"/>
+        </xs:restriction>
+      </xs:simpleType>
+    </xs:attribute>
+    <xs:attribute name="confidence" type="art:ConfidenceType" use="required"/>
+  </xs:complexType>
+
+  <!-- Body content -->
+  <xs:complexType name="BodyType">
+    <xs:choice maxOccurs="unbounded">
+      <xs:element name="paragraph" type="art:ConfidenceTextType"/>
+      <xs:element name="pullquote" type="art:ConfidenceTextType"/>
+    </xs:choice>
+  </xs:complexType>
+
+  <!-- Media -->
+  <xs:complexType name="MediaType">
+    <xs:sequence>
+      <xs:element name="image" type="art:ImageType" maxOccurs="unbounded"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:complexType name="ImageType">
+    <xs:sequence>
+      <xs:element name="caption" type="xs:string" minOccurs="0"/>
+      <xs:element name="credit" type="xs:string" minOccurs="0"/>
+    </xs:sequence>
+    <xs:attribute name="src" type="xs:string" use="required"/>
+    <xs:attribute name="confidence" type="art:ConfidenceType" use="required"/>
+  </xs:complexType>
+
+  <!-- Provenance -->
+  <xs:complexType name="ProvenanceType">
+    <xs:sequence>
+      <xs:element name="extracted_at" type="xs:dateTime"/>
+      <xs:element name="model_version" type="xs:string"/>
+      <xs:element name="confidence_overall" type="art:ConfidenceType"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <!-- Common types -->
+  <xs:complexType name="ConfidenceTextType">
+    <xs:simpleContent>
+      <xs:extension base="xs:string">
+        <xs:attribute name="confidence" type="art:ConfidenceType" use="required"/>
+      </xs:extension>
+    </xs:simpleContent>
+  </xs:complexType>
+
+  <xs:simpleType name="ConfidenceType">
+    <xs:restriction base="xs:decimal">
+      <xs:minInclusive value="0.0"/>
+      <xs:maxInclusive value="1.0"/>
+      <xs:fractionDigits value="3"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+</xs:schema>
