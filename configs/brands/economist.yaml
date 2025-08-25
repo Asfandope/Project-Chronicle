@@ -1,0 +1,270 @@
+brand: economist
+version: "1.0"
+description: "Configuration for The Economist magazine"
+
+# Layout hints for this brand
+layout_hints:
+  column_count: [2, 3]
+  typical_page_dimensions: [595, 842]  # A4 in points
+  title_patterns:
+    - "^[A-Z][a-z]+.*"  # Capitalize first word
+    - "^The.*"          # Articles starting with "The"
+  jump_indicators:
+    - "continued on page"
+    - "from page"
+    - "see page"
+  header_footer_patterns:
+    - "The Economist"
+    - "www.economist.com"
+    - "\\d{1,2}\\s+(January|February|March|April|May|June|July|August|September|October|November|December)\\s+\\d{4}"
+
+# OCR specific configuration for Economist
+ocr:
+  # Tesseract configuration optimized for Economist
+  tesseract_config:
+    oem: 3  # LSTM + Legacy (best for mixed content)
+    psm: 6  # Uniform block of text
+    lang: "eng"
+    dpi: 300
+    timeout: 45  # Longer timeout for high-quality processing
+  
+  # Quality thresholds tuned for Economist layout
+  min_confidence: 0.7
+  min_word_confidence: 0.75
+  min_char_confidence: 0.6
+  
+  # Economist-specific WER targets
+  born_digital_wer_target: 0.0005  # Even stricter for born-digital
+  scanned_wer_target: 0.015        # Slightly better than 2% target
+  
+  # Brand overrides
+  brand_overrides:
+    tesseract_config:
+      psm: 6  # Works well with Economist's column layout
+      dpi: 350  # Higher DPI for better small text recognition
+    min_confidence: 0.7
+    enable_spell_correction: true  # Helps with economic terminology
+
+# OCR preprocessing settings optimized for Economist
+preprocessing:
+  # Enhanced denoising for newsprint quality
+  denoise_enabled: true
+  denoise_strength: 2.5  # Moderate denoising
+  gaussian_blur_kernel: 1
+  
+  # Deskewing important for magazine scans
+  deskew_enabled: true
+  deskew_angle_threshold: 0.3  # More sensitive
+  deskew_max_angle: 8.0
+  
+  # Contrast enhancement for newsprint
+  contrast_enhancement: true
+  adaptive_threshold: true
+  threshold_block_size: 13  # Larger block for magazine text
+  threshold_constant: 1.5
+  
+  # Morphological operations for text cleanup
+  morphology_enabled: true
+  kernel_size: 1  # Smaller kernel for fine text
+  closing_iterations: 1
+  opening_iterations: 1
+  
+  # Higher DPI targeting for Economist
+  target_dpi: 350
+  min_dpi: 200
+  upscale_factor: 1.8
+  
+  # Border removal for magazine margins
+  border_removal: true
+  border_threshold: 0.08  # Larger borders in magazines
+  
+  # Quality selection enabled
+  auto_select_best: true
+  quality_metrics:
+    - "sharpness"
+    - "contrast"
+    - "noise_level"
+
+# Brand-specific confidence overrides
+confidence_overrides:
+  title: 0.95        # Higher threshold for titles
+  body: 0.92         # Standard body text
+  contributors: 0.88 # Bylines can be tricky
+  images: 0.85       # Image detection
+  captions: 0.83     # Caption linking
+
+# Article reconstruction rules
+reconstruction_rules:
+  min_title_length: 5
+  max_title_length: 200
+  min_body_paragraphs: 1
+  spatial_threshold_pixels: 50
+  allow_cross_page_articles: true
+  max_jump_distance_pages: 5
+  
+# Ad filtering configuration
+ad_filtering:
+  visual_indicators:
+    - "high_image_ratio"  # >70% image content
+    - "border_box"        # Surrounded by borders
+  text_patterns:
+    - "Advertisement"
+    - "Sponsored by"
+    - "Subscribe"
+    - "www\\."
+  confidence_threshold: 0.8
+    
+# Contributor parsing patterns
+contributor_patterns:
+  author:
+    - "By\\s+([A-Z][a-z]+(?:\\s+[A-Z][a-z]*)*\\s+[A-Z][a-z]+)"
+    - "([A-Z][a-z]+(?:\\s+[A-Z][a-z]*)*\\s+[A-Z][a-z]+)\\s+reports"
+  photographer:
+    - "Photo:?\\s+([A-Z][a-z]+(?:\\s+[A-Z][a-z]*)*\\s+[A-Z][a-z]+)"
+    - "Photography:?\\s+([A-Z][a-z]+(?:\\s+[A-Z][a-z]*)*\\s+[A-Z][a-z]+)"
+  illustrator:
+    - "Illustration:?\\s+([A-Z][a-z]+(?:\\s+[A-Z][a-z]*)*\\s+[A-Z][a-z]+)"
+
+# Image processing settings
+image_processing:
+  min_dimensions: [100, 100]
+  max_dimensions: [1800, 1800]
+  supported_formats: ["JPEG", "PNG", "TIFF"]
+  caption_linking_distance: 75
+
+# Custom Economist-specific settings
+custom_settings:
+  use_small_caps_detection: true
+  economic_terms_dictionary: true
+  uk_spelling_preference: true
+
+# LayoutLM and semantic graph configuration
+layout_understanding:
+  # LayoutLM model configuration
+  model:
+    name: "microsoft/layoutlmv3-base"
+    confidence_threshold: 0.95
+    device: "auto"
+  
+  # Classification confidence adjustments
+  confidence_adjustments:
+    title:
+      confidence_multiplier: 1.1
+      confidence_bias: 0.05
+    byline:
+      confidence_multiplier: 1.2
+      confidence_bias: 0.03
+    body:
+      confidence_multiplier: 1.05
+    quote:
+      confidence_multiplier: 1.15
+      pattern_overrides:
+        - pattern: '"[^"]*"'
+          new_type: "quote"
+          confidence: 0.92
+        - pattern: '[""][^""]*[""]'  # Smart quotes
+          new_type: "quote"
+          confidence: 0.90
+    caption:
+      confidence_multiplier: 1.1
+    sidebar:
+      confidence_multiplier: 1.0
+      pattern_overrides:
+        - pattern: '(?i)box[:\s]'
+          new_type: "sidebar"
+          confidence: 0.85
+  
+  # Classification pattern adjustments
+  classification_adjustments:
+    title:
+      # Economist titles are often shorter and punchy
+      max_words: 12
+      font_size_bonus: 0.1
+    byline:
+      # Economist byline patterns
+      patterns:
+        - "^[A-Z][a-z]+\\s+[A-Z][a-z]+,?\\s+in\\s+[A-Z]"  # "John Smith, in London"
+        - "^From\\s+[A-Z][a-z]+\\s+[A-Z][a-z]+"  # "From Jane Doe"
+        - "^Our\\s+correspondent\\s+in"  # "Our correspondent in..."
+    quote:
+      # Pull quotes are common in Economist
+      min_words: 5
+      max_words: 50
+      indentation_bonus: 0.1
+  
+  # Spatial relationship configuration
+  spatial_relationships:
+    # Economist-specific spatial thresholds
+    proximity_threshold: 45  # Slightly tighter than default
+    alignment_threshold: 8   # Strict alignment
+    column_gap_threshold: 25 # Narrow columns
+    
+    # Confidence adjustments for spatial relationships
+    above:
+      multiplier: 1.0
+    below:
+      multiplier: 1.0
+    left_of:
+      multiplier: 1.1  # Strong left-to-right reading
+    right_of:
+      multiplier: 1.1
+    
+    # Brand-specific spatial patterns
+    patterns:
+      # Economist often has pull quotes to the right
+      quote_positioning:
+        preferred_side: "right"
+        confidence_bonus: 0.1
+      # Captions below images
+      caption_positioning:
+        preferred_position: "below"
+        confidence_bonus: 0.15
+  
+  # Post-processing rules
+  post_processing:
+    # Remove very low confidence edges
+    min_edge_confidence: 0.3
+    
+    # Economist-specific post-processing
+    quote_enhancement:
+      # Boost confidence for short, well-formatted quotes
+      enable: true
+      max_words: 30
+      confidence_boost: 0.15
+    
+    byline_cleanup:
+      # Remove false byline detections
+      enable: true
+      min_words: 2
+      max_words: 8
+    
+    title_validation:
+      # Ensure title is reasonable
+      enable: true
+      min_length: 10
+      max_length: 150
+      position_check: true  # Should be near top of page
+
+# Accuracy optimization settings
+accuracy_optimization:
+  target_accuracy: 0.995
+  
+  # Multi-model ensemble (if available)
+  ensemble:
+    enabled: false  # Set to true when multiple models available
+    models:
+      - "microsoft/layoutlmv3-base"
+      - "microsoft/layoutlmv3-large"  # If available
+    voting_strategy: "confidence_weighted"
+  
+  # Active learning hints
+  active_learning:
+    enabled: true
+    uncertain_threshold: 0.8  # Flag for manual review
+    pattern_learning: true    # Learn from corrections
+  
+  # Quality assurance
+  quality_assurance:
+    cross_validation: true
+    consistency_checks: true
+    outlier_detection: true

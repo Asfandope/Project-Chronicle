@@ -1,0 +1,103 @@
+# OCR Strategy Configuration
+# Implements PRD Section 5.3 - OCR Strategy
+
+# Overall strategy settings
+strategy:
+  enable_preprocessing: true
+  enable_confidence_analysis: true
+  enable_wer_validation: true
+  min_confidence_threshold: 0.8
+  max_wer_threshold: 0.02
+  parallel_processing: false
+  cache_results: true
+
+# OCR Engine Configuration
+ocr:
+  # Tesseract configuration
+  tesseract_config:
+    oem: 3  # LSTM + Legacy engine
+    psm: 6  # Uniform block of text
+    lang: "eng"
+    dpi: 300
+    timeout: 30
+  
+  # Quality thresholds
+  min_confidence: 0.6
+  min_word_confidence: 0.7
+  min_char_confidence: 0.5
+  
+  # WER targets (PRD Section 5.3)
+  born_digital_wer_target: 0.001  # <0.1%
+  scanned_wer_target: 0.02        # <2%
+  
+  # Processing options
+  enable_preprocessing: true
+  enable_postprocessing: true
+  enable_confidence_filtering: true
+  enable_spell_correction: false
+  
+  # Performance settings
+  max_image_size: [4000, 4000]
+  parallel_processing: false
+  cache_preprocessed_images: true
+
+# Image Preprocessing Configuration
+preprocessing:
+  # Noise reduction
+  denoise_enabled: true
+  denoise_strength: 3.0
+  gaussian_blur_kernel: 1
+  
+  # Deskewing
+  deskew_enabled: true
+  deskew_angle_threshold: 0.5
+  deskew_max_angle: 10.0
+  
+  # Contrast enhancement
+  contrast_enhancement: true
+  adaptive_threshold: true
+  threshold_block_size: 11
+  threshold_constant: 2.0
+  
+  # Morphological operations
+  morphology_enabled: true
+  kernel_size: 2
+  closing_iterations: 1
+  opening_iterations: 1
+  
+  # Scale and resolution
+  target_dpi: 300
+  min_dpi: 150
+  upscale_factor: 2.0
+  
+  # Border removal
+  border_removal: true
+  border_threshold: 0.05
+  
+  # Quality-based selection
+  auto_select_best: true
+  quality_metrics:
+    - "sharpness"
+    - "contrast"
+    - "noise_level"
+
+# Document Type Detection
+detection:
+  text_density_threshold: 0.05
+  image_coverage_threshold: 0.8
+  font_analysis_enabled: true
+  image_analysis_enabled: true
+  confidence_threshold: 0.8
+
+# Confidence Analysis
+confidence:
+  reliable_threshold: 0.8
+  uncertain_threshold: 0.6
+  histogram_bins: 10
+
+# WER Calculation
+wer:
+  born_digital_target: 0.001  # <0.1%
+  scanned_target: 0.02        # <2%
+  case_sensitive: false
+  punctuation_handling: "ignore"  # ignore, strict, normalize

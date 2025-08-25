@@ -1,0 +1,97 @@
+brand: vogue
+version: "1.0"
+description: "Configuration for Vogue fashion magazine"
+
+# Layout hints for this brand
+layout_hints:
+  column_count: [1, 2, 3, 4]  # Fashion magazines vary widely
+  typical_page_dimensions: [612, 792]  # US Letter in points
+  title_patterns:
+    - "^[A-Z][A-Z\\s]+$"      # ALL CAPS fashion titles
+    - "^[A-Z][a-z]+.*"        # Mixed case titles
+    - "^THE\\s+[A-Z]+.*"      # "THE FASHION..." style
+  jump_indicators:
+    - "continued"
+    - "more on"
+    - "see page"
+    - "turn to"
+  header_footer_patterns:
+    - "VOGUE"
+    - "vogue\\.com"
+    - "\\d{1,2}\\s+(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)\\s+\\d{4}"
+
+# OCR preprocessing settings  
+ocr_preprocessing:
+  deskew: true
+  denoise_level: 1  # Fashion magazines often have high print quality
+  enhance_contrast: false  # Preserve artistic layouts
+  tesseract_config: "--oem 3 --psm 3"  # More flexible for artistic layouts
+  confidence_threshold: 0.65  # Lower threshold for artistic text
+  languages: ["eng"]
+
+# Brand-specific confidence overrides
+confidence_overrides:
+  title: 0.88        # Artistic titles can be harder to detect
+  body: 0.85         # Fashion text often has creative formatting
+  contributors: 0.82 # Credits often in small print
+  images: 0.90       # High image focus in fashion
+  captions: 0.80     # Captions often artistic
+
+# Article reconstruction rules
+reconstruction_rules:
+  min_title_length: 3   # Fashion titles can be short ("RED", "BOLD")
+  max_title_length: 100 # Usually shorter than news titles
+  min_body_paragraphs: 1
+  spatial_threshold_pixels: 75  # More flexible for artistic layouts
+  allow_cross_page_articles: true
+  max_jump_distance_pages: 10  # Fashion spreads can span many pages
+
+# Ad filtering configuration
+ad_filtering:
+  visual_indicators:
+    - "high_image_ratio"
+    - "centered_layout"
+    - "small_text"
+  text_patterns:
+    - "ADVERTISEMENT"
+    - "SPONSORED"
+    - "Paid Partnership"
+    - "Shop now"
+    - "Available at"
+  confidence_threshold: 0.75  # Lower threshold - fashion ads blend with content
+
+# Contributor parsing patterns
+contributor_patterns:
+  author:
+    - "BY\\s+([A-Z][A-Z\\s]+)"  # All caps bylines common in fashion
+    - "WORDS\\s+BY\\s+([A-Z][A-Z\\s]+)"
+    - "TEXT\\s+([A-Z][A-Z\\s]+)"
+  photographer:
+    - "PHOTOGRAPHED\\s+BY\\s+([A-Z][A-Z\\s]+)"
+    - "PHOTOGRAPH\\s+([A-Z][A-Z\\s]+)"
+    - "PHOTOS\\s+([A-Z][A-Z\\s]+)"
+    - "SHOT\\s+BY\\s+([A-Z][A-Z\\s]+)"
+  illustrator:
+    - "ILLUSTRATION\\s+([A-Z][A-Z\\s]+)"
+    - "ILLUSTRATED\\s+BY\\s+([A-Z][A-Z\\s]+)"
+
+# Image processing settings
+image_processing:
+  min_dimensions: [150, 150]  # Larger minimum for fashion images
+  max_dimensions: [3000, 3000]  # High-res fashion photography
+  supported_formats: ["JPEG", "PNG", "TIFF", "BMP"]
+  caption_linking_distance: 120  # Fashion captions can be further from images
+
+# Custom Vogue-specific settings
+custom_settings:
+  detect_fashion_terminology: true
+  preserve_artistic_spacing: true
+  handle_overlaid_text: true
+  credit_variations:
+    - "styling"
+    - "hair"
+    - "makeup"
+    - "set design"
+    - "fashion assistant"
+  fashion_brands_dictionary: true
+  color_description_enhancement: true

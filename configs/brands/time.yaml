@@ -1,0 +1,83 @@
+brand: time
+version: "1.0"
+description: "Configuration for TIME magazine"
+
+# Layout hints for this brand
+layout_hints:
+  column_count: [2, 3, 4]
+  typical_page_dimensions: [612, 792]  # US Letter in points
+  title_patterns:
+    - "^[A-Z\\s]+$"     # All caps titles
+    - "^[A-Z][a-z]+.*"  # Mixed case titles
+  jump_indicators:
+    - "Continued on"
+    - "Turn to"
+    - "See page"
+  header_footer_patterns:
+    - "TIME"
+    - "TIME\\.com"
+    - "\\d{1,2}\\s+(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\\s+\\d{4}"
+
+# OCR preprocessing settings
+ocr_preprocessing:
+  deskew: true
+  denoise_level: 1
+  enhance_contrast: false  # TIME often has good print quality
+  tesseract_config: "--oem 3 --psm 6"
+  confidence_threshold: 0.75
+  languages: ["eng"]
+
+# Brand-specific confidence overrides
+confidence_overrides:
+  title: 0.92
+  body: 0.90
+  contributors: 0.85
+  images: 0.88
+  captions: 0.86
+
+# Article reconstruction rules
+reconstruction_rules:
+  min_title_length: 3
+  max_title_length: 150
+  min_body_paragraphs: 2
+  spatial_threshold_pixels: 40
+  allow_cross_page_articles: true
+  max_jump_distance_pages: 5
+  
+# Ad filtering configuration
+ad_filtering:
+  visual_indicators:
+    - "high_image_ratio"
+    - "distinct_background"
+  text_patterns:
+    - "Advertisement"
+    - "Advertorial"
+    - "Sponsored Content"
+    - "Subscribe to TIME"
+  confidence_threshold: 0.85
+    
+# Contributor parsing patterns
+contributor_patterns:
+  author:
+    - "BY\\s+([A-Z][A-Z\\s]+)"  # All caps bylines
+    - "By\\s+([A-Z][a-z]+(?:\\s+[A-Z][a-z]*)*\\s+[A-Z][a-z]+)"
+  photographer:
+    - "PHOTOGRAPH BY\\s+([A-Z][A-Z\\s]+)"
+    - "Photo by\\s+([A-Z][a-z]+(?:\\s+[A-Z][a-z]*)*\\s+[A-Z][a-z]+)"
+  illustrator:
+    - "ILLUSTRATION BY\\s+([A-Z][A-Z\\s]+)"
+
+# Image processing settings
+image_processing:
+  min_dimensions: [120, 120]
+  max_dimensions: [2000, 2000]
+  supported_formats: ["JPEG", "PNG", "TIFF"]
+  caption_linking_distance: 80
+
+# Custom TIME-specific settings
+custom_settings:
+  news_terminology_boost: true
+  person_name_recognition: true
+  location_detection: true
+  us_spelling_preference: true
+  date_format_preference: "american"

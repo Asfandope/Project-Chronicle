@@ -1,0 +1,107 @@
+# Global processing configuration
+version: "1.0"
+description: "Default processing parameters for PDF extraction"
+
+# OCR Configuration
+ocr:
+  engine: "tesseract"
+  default_confidence_threshold: 0.7
+  languages: ["eng"]
+  preprocessing:
+    deskew: true
+    denoise: true
+    enhance_contrast: true
+    gaussian_blur_kernel: 3
+  tesseract:
+    oem: 3  # LSTM OCR Engine Mode
+    psm: 6  # Uniform block of text
+    config_flags:
+      - "tessedit_char_whitelist="  # Allow all characters
+      - "preserve_interword_spaces=1"
+
+# Layout Analysis
+layout_analysis:
+  model: "layoutlm-v3"
+  confidence_threshold: 0.8
+  batch_size: 4
+  max_sequence_length: 512
+  block_types:
+    - "title"
+    - "body" 
+    - "caption"
+    - "pullquote"
+    - "header"
+    - "footer"
+    - "ad"
+  spatial_features:
+    include_position: true
+    include_size: true
+    normalize_coordinates: true
+
+# Article Reconstruction
+article_reconstruction:
+  min_block_confidence: 0.7
+  spatial_threshold_pixels: 50
+  title_detection:
+    min_font_size_ratio: 1.2  # Titles should be larger than body
+    position_bias: "top"       # Titles typically at top
+  jump_detection:
+    patterns:
+      - "continued on page \\d+"
+      - "from page \\d+"
+      - "see page \\d+"
+    confidence_threshold: 0.8
+  cross_page_stitching:
+    enabled: true
+    max_gap_pages: 5
+    confidence_threshold: 0.7
+
+# Named Entity Recognition
+ner:
+  model: "dbmdz/bert-large-cased-finetuned-conll03-english"
+  confidence_threshold: 0.8
+  batch_size: 16
+  max_sequence_length: 512
+  entity_types:
+    - "PER"  # Person names
+    - "ORG"  # Organizations
+
+# Image Processing
+image_processing:
+  min_dimensions: [100, 100]  # width, height in pixels
+  supported_formats: ["JPEG", "PNG", "TIFF", "BMP"]
+  output_format: "JPEG"
+  output_quality: 85
+  max_output_dimensions: [2048, 2048]
+  caption_linking:
+    max_distance_pixels: 100
+    spatial_bias: "below"  # Captions typically below images
+    confidence_threshold: 0.7
+
+# Quality Thresholds
+quality_thresholds:
+  overall_accuracy: 0.999
+  field_thresholds:
+    title_accuracy: 0.995
+    body_accuracy: 0.999  
+    contributor_accuracy: 0.99
+    media_accuracy: 0.95
+  quarantine_threshold: 0.95
+  brand_pass_rate: 0.95
+
+# Performance Settings
+performance:
+  max_concurrent_jobs: 4
+  job_timeout_minutes: 30
+  page_processing_timeout_seconds: 120
+  model_cache_size_mb: 1024
+  enable_gpu: true
+  gpu_memory_fraction: 0.8
+
+# Monitoring and Logging
+monitoring:
+  log_level: "INFO"
+  structured_logging: true
+  metrics_enabled: true
+  trace_requests: false  # Enable for debugging
+  performance_profiling: false
