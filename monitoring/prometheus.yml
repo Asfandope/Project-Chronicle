@@ -1,0 +1,79 @@
+# Prometheus configuration for Magazine PDF Extractor
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    cluster: 'magazine-extractor-dev'
+    environment: 'development'
+
+rule_files:
+  - "rules/*.yml"
+
+scrape_configs:
+  # Prometheus itself
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # Application services
+  - job_name: 'orchestrator'
+    static_configs:
+      - targets: ['orchestrator:8000']
+    metrics_path: '/metrics'
+    scrape_interval: 30s
+    scrape_timeout: 10s
+
+  - job_name: 'model-service'
+    static_configs:
+      - targets: ['model-service:8001']
+    metrics_path: '/metrics'
+    scrape_interval: 30s
+    scrape_timeout: 10s
+
+  - job_name: 'evaluation'
+    static_configs:
+      - targets: ['evaluation:8002']
+    metrics_path: '/metrics'
+    scrape_interval: 30s
+    scrape_timeout: 10s
+
+  # Infrastructure services
+  - job_name: 'postgres'
+    static_configs:
+      - targets: ['postgres-exporter:9187']
+    scrape_interval: 30s
+
+  - job_name: 'redis'
+    static_configs:
+      - targets: ['redis-exporter:9121']
+    scrape_interval: 30s
+
+  - job_name: 'node'
+    static_configs:
+      - targets: ['node-exporter:9100']
+    scrape_interval: 15s
+
+  # Celery task monitoring via Flower
+  - job_name: 'celery'
+    static_configs:
+      - targets: ['flower:5555']
+    metrics_path: '/api/workers'
+    scrape_interval: 30s
+
+  # Health check endpoints
+  - job_name: 'health-checks'
+    static_configs:
+      - targets: 
+          - 'orchestrator:8000'
+          - 'model-service:8001'
+          - 'evaluation:8002'
+    metrics_path: '/health'
+    scrape_interval: 60s
+    scrape_timeout: 5s
+
+# Alerting configuration (optional for development)
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: []
+          # - alertmanager:9093

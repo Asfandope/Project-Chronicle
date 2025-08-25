@@ -1,0 +1,132 @@
+version: '3.8'
+
+services:
+  # PostgreSQL database for evaluation results
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: magazine_evaluation
+      POSTGRES_USER: evaluation_user
+      POSTGRES_PASSWORD: evaluation_pass
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U evaluation_user -d magazine_evaluation"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis for caching and background tasks
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Evaluation service API
+  evaluation-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql://evaluation_user:evaluation_pass@postgres:5432/magazine_evaluation
+      - REDIS_URL=redis://redis:6379
+      - LOG_LEVEL=INFO
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./logs:/app/logs
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  # Background worker for drift detection and auto-tuning
+  evaluation-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: celery -A evaluation_service.tasks worker --loglevel=info
+    environment:
+      - DATABASE_URL=postgresql://evaluation_user:evaluation_pass@postgres:5432/magazine_evaluation
+      - REDIS_URL=redis://redis:6379
+      - LOG_LEVEL=INFO
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./logs:/app/logs
+    restart: unless-stopped
+
+  # Celery beat scheduler for periodic tasks
+  evaluation-scheduler:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: celery -A evaluation_service.tasks beat --loglevel=info
+    environment:
+      - DATABASE_URL=postgresql://evaluation_user:evaluation_pass@postgres:5432/magazine_evaluation
+      - REDIS_URL=redis://redis:6379
+      - LOG_LEVEL=INFO
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./logs:/app/logs
+    restart: unless-stopped
+
+  # Prometheus for metrics collection
+  prometheus:
+    image: prom/prometheus:latest
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=200h'
+      - '--web.enable-lifecycle'
+
+  # Grafana for monitoring dashboards
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin123
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana/dashboards:/var/lib/grafana/dashboards
+      - ./grafana/provisioning:/etc/grafana/provisioning
+    depends_on:
+      - prometheus
+
+volumes:
+  postgres_data:
+  redis_data:
+  prometheus_data:
+  grafana_data:

@@ -1,0 +1,161 @@
+groups:
+  - name: magazine_extractor_alerts
+    rules:
+      # Service availability alerts
+      - alert: ServiceDown
+        expr: up == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Service {{ $labels.job }} is down"
+          description: "Service {{ $labels.job }} has been down for more than 1 minute."
+
+      # Database alerts
+      - alert: PostgreSQLDown
+        expr: up{job="postgres"} == 0
+        for: 30s
+        labels:
+          severity: critical
+        annotations:
+          summary: "PostgreSQL database is down"
+          description: "PostgreSQL database has been unreachable for more than 30 seconds."
+
+      - alert: PostgreSQLTooManyConnections
+        expr: pg_stat_database_numbackends / pg_settings_max_connections > 0.8
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "PostgreSQL has too many connections"
+          description: "PostgreSQL is using {{ $value | humanizePercentage }} of available connections."
+
+      # Redis alerts
+      - alert: RedisDown
+        expr: up{job="redis"} == 0
+        for: 30s
+        labels:
+          severity: critical
+        annotations:
+          summary: "Redis is down"
+          description: "Redis has been unreachable for more than 30 seconds."
+
+      - alert: RedisMemoryUsageHigh
+        expr: redis_memory_used_bytes / redis_memory_max_bytes > 0.9
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Redis memory usage is high"
+          description: "Redis memory usage is above 90%: {{ $value | humanizePercentage }}"
+
+      # Application-specific alerts
+      - alert: HighJobFailureRate
+        expr: |
+          (
+            rate(magazine_jobs_failed_total[5m]) / 
+            rate(magazine_jobs_total[5m])
+          ) > 0.1
+        for: 3m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High job failure rate detected"
+          description: "Job failure rate is {{ $value | humanizePercentage }} over the last 5 minutes."
+
+      - alert: JobQueueBacklog
+        expr: magazine_jobs_pending > 100
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Large job queue backlog"
+          description: "There are {{ $value }} pending jobs in the queue."
+
+      - alert: LowAccuracyScore
+        expr: avg(magazine_job_accuracy_score) < 0.95
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Average accuracy score is low"
+          description: "Average job accuracy score has dropped to {{ $value | humanizePercentage }}."
+
+      # Performance alerts
+      - alert: HighResponseTime
+        expr: histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m])) > 2
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High response time on {{ $labels.job }}"
+          description: "95th percentile response time is {{ $value }}s on {{ $labels.job }}."
+
+      - alert: HighErrorRate
+        expr: |
+          (
+            sum(rate(http_requests_total{status=~"5.."}[5m])) by (job) /
+            sum(rate(http_requests_total[5m])) by (job)
+          ) > 0.05
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High error rate on {{ $labels.job }}"
+          description: "Error rate is {{ $value | humanizePercentage }} on {{ $labels.job }}."
+
+      # System resource alerts
+      - alert: HighCPUUsage
+        expr: 100 - (avg by (instance) (irate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 80
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High CPU usage"
+          description: "CPU usage is {{ $value }}% on {{ $labels.instance }}."
+
+      - alert: HighMemoryUsage
+        expr: (node_memory_MemTotal_bytes - node_memory_MemAvailable_bytes) / node_memory_MemTotal_bytes > 0.85
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High memory usage"
+          description: "Memory usage is {{ $value | humanizePercentage }} on {{ $labels.instance }}."
+
+      - alert: LowDiskSpace
+        expr: (node_filesystem_avail_bytes / node_filesystem_size_bytes) < 0.1
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Low disk space"
+          description: "Disk space is {{ $value | humanizePercentage }} full on {{ $labels.instance }} {{ $labels.mountpoint }}."
+
+  - name: magazine_extractor_recording_rules
+    rules:
+      # Recording rules for common queries
+      - record: magazine:job_processing_rate
+        expr: rate(magazine_jobs_completed_total[5m])
+
+      - record: magazine:job_failure_rate
+        expr: rate(magazine_jobs_failed_total[5m])
+
+      - record: magazine:avg_processing_time
+        expr: avg(magazine_job_processing_duration_seconds)
+
+      - record: magazine:accuracy_by_brand
+        expr: avg(magazine_job_accuracy_score) by (brand)
+
+      - record: magazine:queue_utilization
+        expr: magazine_jobs_active / magazine_jobs_capacity
+
+      # HTTP metrics
+      - record: http:request_rate
+        expr: sum(rate(http_requests_total[5m])) by (job, method, status)
+
+      - record: http:request_duration_p95
+        expr: histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m]))
+
+      - record: http:request_duration_p99
+        expr: histogram_quantile(0.99, rate(http_request_duration_seconds_bucket[5m]))
