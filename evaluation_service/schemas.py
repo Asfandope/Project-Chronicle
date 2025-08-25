@@ -7,7 +7,7 @@ including evaluation requests, accuracy results, and drift detection.
 
 from datetime import datetime
 from typing import Dict, List, Optional, Any, Union
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, validator, computed_field
 from enum import Enum
 import uuid
 
@@ -152,11 +152,12 @@ class EvaluationRunResponse(BaseModel):
     model_version: Optional[str] = None
     
     # Metadata
-    metadata: Optional[Dict[str, Any]] = {}
+    metadata: Optional[Dict[str, Any]] = Field(default={}, alias="evaluation_metadata")
     notes: Optional[str] = None
 
     class Config:
         from_attributes = True
+        populate_by_name = True
 
 
 class DocumentEvaluationResponse(BaseModel):
@@ -407,6 +408,12 @@ class SuccessResponse(BaseModel):
 
 
 # Validation schemas
+class XMLValidationRequest(BaseModel):
+    """Request schema for XML validation."""
+    xml_content: str = Field(..., description="XML content to validate")
+    xml_type: str = Field(..., pattern="^(ground_truth|extracted)$", description="Type of XML content")
+
+
 class XMLValidationResponse(BaseModel):
     """Response schema for XML validation."""
     is_valid: bool
@@ -440,23 +447,18 @@ class PaginatedResponse(BaseModel):
     total_count: int
     page: int
     page_size: int
-    total_pages: int
-    has_next: bool
-    has_previous: bool
-
-    @validator('total_pages', always=True)
-    def calculate_total_pages(cls, v, values):
-        total_count = values.get('total_count', 0)
-        page_size = values.get('page_size', 20)
-        return (total_count + page_size - 1) // page_size if page_size > 0 else 0
     
-    @validator('has_next', always=True)
-    def calculate_has_next(cls, v, values):
-        page = values.get('page', 1)
-        total_pages = values.get('total_pages', 0)
-        return page < total_pages
+    @computed_field
+    @property
+    def total_pages(self) -> int:
+        return (self.total_count + self.page_size - 1) // self.page_size if self.page_size > 0 else 0
     
-    @validator('has_previous', always=True)
-    def calculate_has_previous(cls, v, values):
-        page = values.get('page', 1)
-        return page > 1
+    @computed_field
+    @property
+    def has_next(self) -> bool:
+        return self.page < self.total_pages
+    
+    @computed_field  
+    @property
+    def has_previous(self) -> bool:
+        return self.page > 1

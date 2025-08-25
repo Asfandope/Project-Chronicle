@@ -1,0 +1,59 @@
+{
+  "economist_20250825_140238_e0420f48": {
+    "config": {
+      "experiment_id": "economist_20250825_140238_e0420f48",
+      "brand": "economist",
+      "model_name": "microsoft/layoutlmv3-base",
+      "timestamp": "2025-08-25T14:02:38.744460",
+      "learning_rate": 2e-05,
+      "batch_size": 4,
+      "num_epochs": 10,
+      "max_sequence_length": 512,
+      "num_labels": 13,
+      "warmup_steps": 500,
+      "weight_decay": 0.01,
+      "description": "Test experiment",
+      "tags": []
+    },
+    "status": "created",
+    "results": null
+  },
+  "economist_20250825_140459_d784fef7": {
+    "config": {
+      "experiment_id": "economist_20250825_140459_d784fef7",
+      "brand": "economist",
+      "model_name": "microsoft/layoutlmv3-base",
+      "timestamp": "2025-08-25T14:04:59.909481",
+      "learning_rate": 2e-05,
+      "batch_size": 4,
+      "num_epochs": 12,
+      "max_sequence_length": 512,
+      "num_labels": 13,
+      "warmup_steps": 500,
+      "weight_decay": 0.01,
+      "description": "Test experiment",
+      "tags": []
+    },
+    "status": "created",
+    "results": null
+  },
+  "economist_20250825_140521_1d9e8f46": {
+    "config": {
+      "experiment_id": "economist_20250825_140521_1d9e8f46",
+      "brand": "economist",
+      "model_name": "microsoft/layoutlmv3-base",
+      "timestamp": "2025-08-25T14:05:21.269002",
+      "learning_rate": 2e-05,
+      "batch_size": 4,
+      "num_epochs": 12,
+      "max_sequence_length": 512,
+      "num_labels": 13,
+      "warmup_steps": 500,
+      "weight_decay": 0.01,
+      "description": "Test experiment",
+      "tags": []
+    },
+    "status": "created",
+    "results": null
+  }
+}

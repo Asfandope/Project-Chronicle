@@ -10,10 +10,10 @@ from pathlib import Path
 
 # Import all services for testing
 from orchestrator.main import create_app as create_orchestrator_app
-from model_service.main import create_app as create_model_service_app
-from evaluation.main import create_app as create_evaluation_app
-from orchestrator.core.database import Base as OrchestratorBase
-from evaluation.core.database import Base as EvaluationBase
+from model_service.main import create_app as create_model_service_app  
+from evaluation_service.main import create_app as create_evaluation_app
+from orchestrator.models import Base as OrchestratorBase
+from evaluation_service.models import Base as EvaluationBase
 
 # Test database URL
 TEST_DATABASE_URL = "postgresql+asyncpg://postgres:postgres@localhost:5432/test_magazine_extractor"
@@ -72,7 +72,7 @@ async def orchestrator_client(test_db_session) -> AsyncGenerator[AsyncClient, No
     async def override_get_db():
         yield test_db_session
     
-    app.dependency_overrides[f"orchestrator.core.database.get_db"] = override_get_db
+    app.dependency_overrides["orchestrator.core.database.get_db"] = override_get_db
     
     async with AsyncClient(app=app, base_url="http://test") as client:
         yield client
@@ -94,7 +94,7 @@ async def evaluation_client(test_db_session) -> AsyncGenerator[AsyncClient, None
     async def override_get_db():
         yield test_db_session
     
-    app.dependency_overrides[f"evaluation.core.database.get_db"] = override_get_db
+    app.dependency_overrides["evaluation_service.main.get_db"] = override_get_db
     
     async with AsyncClient(app=app, base_url="http://test") as client:
         yield client

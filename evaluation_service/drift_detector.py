@@ -356,6 +356,15 @@ class DriftDetector:
         """Store drift detection results in database."""
         
         try:
+            # Sanitize NaN values for database storage
+            p_value = result.p_value if result.p_value is not None and not np.isnan(result.p_value) else None
+            
+            confidence_interval = None
+            if result.confidence_interval is not None:
+                ci_list = list(result.confidence_interval)
+                if not any(np.isnan(ci_list)):
+                    confidence_interval = ci_list
+            
             drift_detection = DriftDetection(
                 evaluation_run_id=evaluation_run.id,
                 window_size=self.config.window_size,
@@ -368,8 +377,8 @@ class DriftDetector:
                 drift_detected=result.drift_detected,
                 alert_triggered=result.alert_triggered,
                 auto_tuning_triggered=result.auto_tuning_triggered,
-                p_value=result.p_value,
-                confidence_interval=result.confidence_interval,
+                p_value=p_value,
+                confidence_interval=confidence_interval,
                 window_data=result.window_data,
                 trend_direction=result.trend_direction,
                 actions_triggered=result.recommended_actions

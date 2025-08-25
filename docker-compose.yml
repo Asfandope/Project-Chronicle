@@ -207,11 +207,11 @@ services:
           path: ./services/model_service
           target: /app/services/model_service
 
-  # Evaluation Service (Stub)
+  # Evaluation Service
   evaluation:
     build:
       context: .
-      dockerfile: services/evaluation/Dockerfile
+      dockerfile: evaluation_service/Dockerfile
       target: development
     container_name: magazine_evaluation
     environment:
@@ -223,7 +223,7 @@ services:
     ports:
       - "8002:8002"
     volumes:
-      - ./services/evaluation:/app/services/evaluation
+      - ./evaluation_service:/app/evaluation_service
       - ./shared:/app/shared
       - pdf_data:/app/data
       - ./logs:/app/logs
@@ -241,12 +241,12 @@ services:
       timeout: 10s
       retries: 3
       start_period: 30s
-    command: ["uvicorn", "evaluation.main:app", "--host", "0.0.0.0", "--port", "8002", "--reload"]
+    command: ["uvicorn", "evaluation_service.main:app", "--host", "0.0.0.0", "--port", "8002", "--reload"]
     develop:
       watch:
         - action: sync
-          path: ./services/evaluation
-          target: /app/services/evaluation
+          path: ./evaluation_service
+          target: /app/evaluation_service
 
   # Prometheus for metrics collection
   prometheus:

@@ -8,13 +8,13 @@ import time
 from typing import Dict, Any
 import asyncio
 
-from orchestrator.api import jobs, health, config
-from orchestrator.core.config import get_settings
-from orchestrator.core.database import init_db
-from orchestrator.core.logging import configure_logging
-from orchestrator.utils.correlation import CorrelationIdMiddleware
-from orchestrator.services.file_watcher import FileWatcherService
-from orchestrator.services.job_queue_manager import JobQueueManager
+from .api import jobs, health, config
+from .core.config import get_settings
+from .core.database import init_db
+from .core.logging import configure_logging
+from .utils.correlation import CorrelationIdMiddleware
+from .services.file_watcher import FileWatcherService
+from .services.job_queue_manager import JobQueueManager
 
 # Configure structured logging
 configure_logging()

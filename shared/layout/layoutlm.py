@@ -19,6 +19,13 @@ from transformers import (
 )
 import structlog
 
+# Add brand model manager import
+try:
+    from data_management.brand_model_manager import BrandModelManager
+    BRAND_MODELS_AVAILABLE = True
+except ImportError:
+    BRAND_MODELS_AVAILABLE = False
+
 from .types import (
     TextBlock, BlockType, BoundingBox, PageLayout, 
     LayoutResult, LayoutError
@@ -41,7 +48,8 @@ class LayoutLMClassifier:
         model_name: str = "microsoft/layoutlmv3-base",
         device: Optional[str] = None,
         confidence_threshold: float = 0.95,
-        brand_config: Optional[Dict[str, Any]] = None
+        brand_config: Optional[Dict[str, Any]] = None,
+        use_brand_models: bool = True
     ):
         """
         Initialize LayoutLM classifier.
@@ -51,10 +59,12 @@ class LayoutLMClassifier:
             device: Device to run model on (auto-detected if None)
             confidence_threshold: Minimum confidence for classification
             brand_config: Brand-specific configuration hints
+            use_brand_models: Whether to use brand-specific fine-tuned models
         """
         self.model_name = model_name
         self.confidence_threshold = confidence_threshold
         self.brand_config = brand_config or {}
+        self.use_brand_models = use_brand_models and BRAND_MODELS_AVAILABLE
         
         # Auto-detect device
         if device is None:
@@ -71,6 +81,24 @@ class LayoutLMClassifier:
         self.processor = None
         self.model = None
         self.tokenizer = None
+        self.current_brand = None
+        self.model_info = None
+        
+        # Initialize brand model manager if available
+        if self.use_brand_models:
+            try:
+                self.brand_manager = BrandModelManager(
+                    base_model_name=model_name,
+                    device=device
+                )
+                self.logger.info("Brand model manager initialized",
+                               available_brands=self.brand_manager.get_available_brands())
+            except Exception as e:
+                self.logger.warning("Failed to initialize brand model manager", error=str(e))
+                self.use_brand_models = False
+                self.brand_manager = None
+        else:
+            self.brand_manager = None
         
         # Block type mapping
         self.block_type_mapping = self._create_block_type_mapping()
@@ -112,35 +140,87 @@ class LayoutLMClassifier:
             "brand_adjustments": self.brand_config.get("confidence_adjustments", {})
         }
     
-    def load_model(self):
-        """Load LayoutLM model and processor."""
+    def load_model(self, brand: Optional[str] = None):
+        """
+        Load LayoutLM model and processor, optionally brand-specific.
+        
+        Args:
+            brand: Brand name for loading brand-specific model
+        """
         try:
-            self.logger.info("Loading LayoutLM model", model=self.model_name)
-            
-            # Load processor
-            self.processor = LayoutLMv3Processor.from_pretrained(
-                self.model_name,
-                apply_ocr=False  # We handle OCR separately
-            )
-            
-            # Load tokenizer
-            self.tokenizer = AutoTokenizer.from_pretrained(self.model_name)
-            
-            # Load model
-            self.model = LayoutLMv3ForTokenClassification.from_pretrained(
-                self.model_name,
-                num_labels=len(self.block_type_mapping)
-            )
-            
-            # Move to device
-            self.model.to(self.device)
-            self.model.eval()
-            
-            self.logger.info("LayoutLM model loaded successfully")
+            # If brand is provided and brand models are available, try to load brand model
+            if brand and self.use_brand_models and self.brand_manager:
+                return self._load_brand_model(brand)
+            else:
+                return self._load_base_model()
             
         except Exception as e:
             self.logger.error("Error loading LayoutLM model", error=str(e), exc_info=True)
             raise LayoutError(f"Failed to load LayoutLM model: {e}")
+    
+    def _load_base_model(self):
+        """Load base LayoutLM model."""
+        self.logger.info("Loading base LayoutLM model", model=self.model_name)
+        
+        # Load processor
+        self.processor = LayoutLMv3Processor.from_pretrained(
+            self.model_name,
+            apply_ocr=False  # We handle OCR separately
+        )
+        
+        # Load tokenizer
+        self.tokenizer = AutoTokenizer.from_pretrained(self.model_name)
+        
+        # Load model
+        self.model = LayoutLMv3ForTokenClassification.from_pretrained(
+            self.model_name,
+            num_labels=len(self.block_type_mapping)
+        )
+        
+        # Move to device
+        self.model.to(self.device)
+        self.model.eval()
+        
+        self.current_brand = None
+        self.model_info = {
+            "model_type": "base",
+            "model_name": self.model_name,
+            "brand": None,
+            "is_fine_tuned": False
+        }
+        
+        self.logger.info("Base LayoutLM model loaded successfully")
+    
+    def _load_brand_model(self, brand: str):
+        """Load brand-specific fine-tuned model."""
+        self.logger.info("Loading brand-specific LayoutLM model", brand=brand)
+        
+        try:
+            # Get brand model from manager
+            model, processor, tokenizer, model_info = self.brand_manager.get_model_for_brand(brand)
+            
+            self.model = model
+            self.processor = processor
+            self.tokenizer = tokenizer
+            self.current_brand = brand
+            self.model_info = {
+                "model_type": "brand_specific",
+                "model_name": model_info.model_name,
+                "brand": brand,
+                "is_fine_tuned": model_info.is_fine_tuned,
+                "accuracy": model_info.accuracy,
+                "model_path": model_info.model_path
+            }
+            
+            self.logger.info("Brand-specific model loaded successfully",
+                           brand=brand,
+                           is_fine_tuned=model_info.is_fine_tuned,
+                           accuracy=model_info.accuracy)
+            
+        except Exception as e:
+            self.logger.warning("Failed to load brand model, falling back to base",
+                              brand=brand, error=str(e))
+            self._load_base_model()
     
     def classify_blocks(
         self, 
@@ -488,6 +568,56 @@ class LayoutLMClassifier:
         metrics["accuracy_estimate"] = min(0.995, 0.85 + 0.15 * metrics["avg_confidence"])
         
         return metrics
+    
+    def get_model_info(self) -> Dict[str, Any]:
+        """Get information about the currently loaded model."""
+        if not self.model_info:
+            return {"error": "No model loaded"}
+        
+        base_info = self.model_info.copy()
+        base_info.update({
+            "confidence_threshold": self.confidence_threshold,
+            "device": self.device,
+            "current_brand": self.current_brand,
+            "use_brand_models": self.use_brand_models,
+        })
+        
+        if self.use_brand_models and self.brand_manager:
+            base_info["available_brands"] = self.brand_manager.get_available_brands()
+            base_info["model_comparison"] = self.brand_manager.get_model_performance_comparison()
+        
+        return base_info
+    
+    def switch_brand_model(self, brand: str) -> bool:
+        """
+        Switch to a different brand model.
+        
+        Args:
+            brand: Brand name to switch to
+            
+        Returns:
+            True if switch was successful, False otherwise
+        """
+        if not self.use_brand_models or not self.brand_manager:
+            self.logger.warning("Brand models not available", brand=brand)
+            return False
+        
+        try:
+            self._load_brand_model(brand)
+            return True
+        except Exception as e:
+            self.logger.error("Failed to switch brand model", brand=brand, error=str(e))
+            return False
+    
+    def get_brand_performance(self, brand: str) -> Optional[Dict[str, Any]]:
+        """Get performance information for a specific brand model."""
+        if not self.use_brand_models or not self.brand_manager:
+            return None
+        
+        comparison = self.brand_manager.get_model_performance_comparison()
+        brand_key = f"brand_{brand}"
+        
+        return comparison.get(brand_key)
     
     @staticmethod
     def create_brand_config(brand_name: str, config_path: Optional[Path] = None) -> Dict[str, Any]:

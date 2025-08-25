@@ -5,7 +5,7 @@ This module defines SQLAlchemy models for storing evaluation results,
 accuracy metrics, and drift detection data in PostgreSQL.
 """
 
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from typing import Dict, List, Optional, Any
 from sqlalchemy import (
     Column, Integer, String, Float, DateTime, JSON, Boolean, 

@@ -170,6 +170,7 @@ class EvaluationServiceTester:
     
     def __init__(self, base_url: str = "http://localhost:8000"):
         self.base_url = base_url
+        self.evaluation_base_url = f"{base_url}/api/v1/evaluation"
         self.session = requests.Session()
     
     def test_health_check(self):
@@ -182,8 +183,10 @@ class EvaluationServiceTester:
             
             health_data = response.json()
             print(f"✓ Health check passed: {health_data['status']}")
-            print(f"  Database connected: {health_data['database_connected']}")
-            print(f"  Version: {health_data['version']}")
+            print(f"  Database connected: {health_data.get('database', 'unknown')}")
+            print(f"  Services: {', '.join(health_data.get('services', []))}")
+            if 'version' in health_data:
+                print(f"  Version: {health_data['version']}")
             return True
             
         except Exception as e:
@@ -197,10 +200,15 @@ class EvaluationServiceTester:
         try:
             # Test valid ground truth XML
             response = self.session.post(
-                f"{self.base_url}/validate/xml",
-                params={"xml_type": "ground_truth"},
-                json=SAMPLE_GROUND_TRUTH
+                f"{self.evaluation_base_url}/validate/xml",
+                json={
+                    "xml_content": SAMPLE_GROUND_TRUTH,
+                    "xml_type": "ground_truth"
+                }
             )
+            if response.status_code != 200:
+                print(f"  Response status: {response.status_code}")
+                print(f"  Response body: {response.text}")
             response.raise_for_status()
             
             validation_result = response.json()
@@ -210,9 +218,11 @@ class EvaluationServiceTester:
             
             # Test valid extracted XML
             response = self.session.post(
-                f"{self.base_url}/validate/xml", 
-                params={"xml_type": "extracted"},
-                json=PERFECT_EXTRACTION
+                f"{self.evaluation_base_url}/validate/xml",
+                json={
+                    "xml_content": PERFECT_EXTRACTION,
+                    "xml_type": "extracted"
+                }
             )
             response.raise_for_status()
             
@@ -253,7 +263,7 @@ class EvaluationServiceTester:
                 }
                 
                 response = self.session.post(
-                    f"{self.base_url}/evaluate/single",
+                    f"{self.evaluation_base_url}/evaluate/single",
                     json=request_data
                 )
                 response.raise_for_status()
@@ -319,7 +329,7 @@ class EvaluationServiceTester:
             }
             
             response = self.session.post(
-                f"{self.base_url}/evaluate/batch",
+                f"{self.evaluation_base_url}/evaluate/batch",
                 json=batch_request
             )
             response.raise_for_status()
@@ -348,7 +358,7 @@ class EvaluationServiceTester:
         try:
             # Trigger drift detection manually
             response = self.session.post(
-                f"{self.base_url}/drift/detect",
+                f"{self.evaluation_base_url}/drift/detect",
                 params={"evaluation_run_id": evaluation_run_id}
             )
             response.raise_for_status()
@@ -378,7 +388,7 @@ class EvaluationServiceTester:
         
         try:
             # Get drift status for overall metric
-            response = self.session.get(f"{self.base_url}/drift/status/overall")
+            response = self.session.get(f"{self.evaluation_base_url}/drift/status/overall")
             response.raise_for_status()
             
             status_result = response.json()
@@ -388,7 +398,7 @@ class EvaluationServiceTester:
             print(f"  Last checked: {status_result.get('last_checked', 'Never')}")
             
             # Get drift summary
-            response = self.session.get(f"{self.base_url}/drift/summary", params={"days": 7})
+            response = self.session.get(f"{self.evaluation_base_url}/drift/summary", params={"days": 7})
             response.raise_for_status()
             
             summary = response.json()
@@ -411,7 +421,7 @@ class EvaluationServiceTester:
         try:
             # Get recent evaluations
             response = self.session.get(
-                f"{self.base_url}/evaluations",
+                f"{self.evaluation_base_url}/evaluations",
                 params={"page": 1, "page_size": 5}
             )
             response.raise_for_status()
@@ -436,7 +446,7 @@ class EvaluationServiceTester:
         
         try:
             response = self.session.get(
-                f"{self.base_url}/system/health",
+                f"{self.evaluation_base_url}/system/health",
                 params={"period_hours": 24}
             )
             response.raise_for_status()
@@ -462,7 +472,7 @@ class EvaluationServiceTester:
         
         try:
             response = self.session.get(
-                f"{self.base_url}/analytics/trends",
+                f"{self.evaluation_base_url}/analytics/trends",
                 params={
                     "metric_type": "overall",
                     "days": 7

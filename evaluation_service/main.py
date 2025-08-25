@@ -33,7 +33,7 @@ from .schemas import (
     DocumentEvaluationResponse, DriftDetectionResponse, AutoTuningEventResponse,
     SystemHealthResponse, AccuracyTrendResponse, DriftDetectionSettings,
     ErrorResponse, SuccessResponse, HealthCheckResponse, PaginationParams,
-    PaginatedResponse, XMLValidationResponse, EvaluationType, TriggerSource,
+    PaginatedResponse, XMLValidationRequest, XMLValidationResponse, EvaluationType, TriggerSource,
     MetricType
 )
 from .evaluation_service import EvaluationService
@@ -694,13 +694,12 @@ async def get_system_health(
 # Utility endpoints
 @app.post("/validate/xml", response_model=XMLValidationResponse)
 async def validate_xml(
-    xml_content: str,
-    xml_type: str = Query(..., pattern="^(ground_truth|extracted)$")
+    request: XMLValidationRequest
 ):
     """Validate XML format and structure."""
     
     try:
-        is_valid, errors = evaluation_service.validate_xml_format(xml_content, xml_type)
+        is_valid, errors = evaluation_service.validate_xml_format(request.xml_content, request.xml_type)
         
         # Count elements if valid
         element_count = None
@@ -709,9 +708,9 @@ async def validate_xml(
         if is_valid:
             try:
                 import xml.etree.ElementTree as ET
-                root = ET.fromstring(xml_content)
+                root = ET.fromstring(request.xml_content)
                 
-                if xml_type == 'ground_truth':
+                if request.xml_type == 'ground_truth':
                     elements = root.findall('.//*')
                     element_count = len(elements)
                     article_count = len(root.findall('.//article'))

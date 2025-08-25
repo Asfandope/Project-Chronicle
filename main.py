@@ -21,6 +21,21 @@ from self_tuning.api import mount_self_tuning_api
 from quarantine.api import mount_quarantine_api
 from parameter_management.initialization import initialize_parameter_management_system
 
+# Try to import model service and orchestrator (with error handling)
+try:
+    from services.model_service.main import create_app as create_model_app
+    model_service_available = True
+except ImportError as e:
+    print(f"Model service not available: {e}")
+    model_service_available = False
+
+try:
+    from services.orchestrator.main import create_app as create_orchestrator_app
+    orchestrator_service_available = True
+except ImportError as e:
+    print(f"Orchestrator service not available: {e}")
+    orchestrator_service_available = False
+
 
 # Configure logging
 logging.basicConfig(
@@ -97,14 +112,21 @@ def create_app() -> FastAPI:
             with get_db_session() as session:
                 session.execute(text("SELECT 1"))
             
+            services = [
+                "evaluation_service",
+                "parameter_management", 
+                "self_tuning",
+                "quarantine"
+            ]
+            
+            if model_service_available:
+                services.append("model_service")
+            if orchestrator_service_available:
+                services.append("orchestrator_service")
+                
             return {
                 "status": "healthy",
-                "services": [
-                    "evaluation_service",
-                    "parameter_management", 
-                    "self_tuning",
-                    "quarantine"
-                ],
+                "services": services,
                 "database": "connected"
             }
         except Exception as e:
@@ -152,6 +174,24 @@ def create_app() -> FastAPI:
     
     # Mount evaluation service (it's a separate app)
     app.mount("/api/v1/evaluation", evaluation_app)
+    
+    # Mount model service if available
+    if model_service_available:
+        try:
+            model_app = create_model_app()
+            app.mount("/api/v1/model", model_app)
+            logger.info("Model service mounted at /api/v1/model")
+        except Exception as e:
+            logger.error(f"Failed to mount model service: {e}")
+    
+    # Mount orchestrator service if available  
+    if orchestrator_service_available:
+        try:
+            orchestrator_app = create_orchestrator_app()
+            app.mount("/api/v1/orchestrator", orchestrator_app)
+            logger.info("Orchestrator service mounted at /api/v1/orchestrator")
+        except Exception as e:
+            logger.error(f"Failed to mount orchestrator service: {e}")
     
     logger.info("FastAPI application created with all services mounted")
     
