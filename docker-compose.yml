@@ -1,0 +1,386 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: magazine_postgres
+    environment:
+      POSTGRES_DB: magazine_extractor
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_INITDB_ARGS: "--encoding=UTF-8"
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql:ro
+    networks:
+      - magazine_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d magazine_extractor"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+
+  # Redis for Celery broker and result backend
+  redis:
+    image: redis:7-alpine
+    container_name: magazine_redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - magazine_network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+    command: redis-server --appendonly yes --maxmemory 512mb --maxmemory-policy allkeys-lru
+
+  # Orchestrator Service
+  orchestrator:
+    build:
+      context: .
+      dockerfile: services/orchestrator/Dockerfile
+      target: development
+    container_name: magazine_orchestrator
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/magazine_extractor
+      - REDIS_URL=redis://redis:6379
+      - MODEL_SERVICE_URL=http://model-service:8001
+      - EVALUATION_SERVICE_URL=http://evaluation:8002
+      - DEBUG=true
+      - LOG_LEVEL=INFO
+      - LOG_FORMAT=console
+      - ENABLE_FILE_WATCHER=true
+      - INPUT_DIRECTORY=/app/data/input
+      - OUTPUT_DIRECTORY=/app/data/output
+      - TEMP_DIRECTORY=/app/data/temp
+      - QUARANTINE_DIRECTORY=/app/data/quarantine
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./services/orchestrator:/app/services/orchestrator
+      - ./shared:/app/shared
+      - ./alembic:/app/alembic
+      - pdf_data:/app/data
+      - ./logs:/app/logs
+      - ./configs:/app/configs
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - magazine_network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    command: ["uvicorn", "orchestrator.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+    develop:
+      watch:
+        - action: sync
+          path: ./services/orchestrator
+          target: /app/services/orchestrator
+          ignore:
+            - "**/__pycache__"
+        - action: sync
+          path: ./shared
+          target: /app/shared
+
+  # Project Chronicle Services
+  project_chronicle:
+    build:
+      context: .
+      dockerfile: Dockerfile.chronicle
+    container_name: project_chronicle
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/magazine_extractor
+      - REDIS_URL=redis://redis:6379
+      - LOG_LEVEL=info
+      - SQL_ECHO=false
+    ports:
+      - "8100:8000"
+    volumes:
+      - .:/app
+      - quarantine_data:/app/quarantine_files
+      - ./logs:/app/logs
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - magazine_network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    command: ["python", "main.py"]
+
+  # Celery Worker for Orchestrator
+  orchestrator-worker:
+    build:
+      context: .
+      dockerfile: services/orchestrator/Dockerfile
+      target: development
+    container_name: magazine_orchestrator_worker
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/magazine_extractor
+      - REDIS_URL=redis://redis:6379
+      - MODEL_SERVICE_URL=http://model-service:8001
+      - EVALUATION_SERVICE_URL=http://evaluation:8002
+      - DEBUG=true
+      - LOG_LEVEL=INFO
+      - LOG_FORMAT=console
+      - CELERY_WORKER=true
+    volumes:
+      - ./services/orchestrator:/app/services/orchestrator
+      - ./shared:/app/shared
+      - pdf_data:/app/data
+      - ./logs:/app/logs
+      - ./configs:/app/configs
+    depends_on:
+      - postgres
+      - redis
+      - orchestrator
+    networks:
+      - magazine_network
+    restart: unless-stopped
+    command: ["celery", "-A", "orchestrator.celery_app", "worker", "--loglevel=info", "--queues=ingestion,processing,monitoring"]
+    develop:
+      watch:
+        - action: sync
+          path: ./services/orchestrator
+          target: /app/services/orchestrator
+
+  # Model Service (Stub)
+  model-service:
+    build:
+      context: .
+      dockerfile: services/model_service/Dockerfile
+      target: development
+    container_name: magazine_model_service
+    environment:
+      - DEBUG=true
+      - LOG_LEVEL=INFO
+      - LOG_FORMAT=console
+      - REDIS_URL=redis://redis:6379
+      - DEVICE=cpu
+      - MODEL_CACHE_DIR=/app/models
+    ports:
+      - "8001:8001"
+    volumes:
+      - ./services/model_service:/app/services/model_service
+      - ./shared:/app/shared
+      - pdf_data:/app/data
+      - ./logs:/app/logs
+      - model_cache:/app/models
+    depends_on:
+      - redis
+    networks:
+      - magazine_network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    command: ["uvicorn", "model_service.main:app", "--host", "0.0.0.0", "--port", "8001", "--reload"]
+    develop:
+      watch:
+        - action: sync
+          path: ./services/model_service
+          target: /app/services/model_service
+
+  # Evaluation Service (Stub)
+  evaluation:
+    build:
+      context: .
+      dockerfile: services/evaluation/Dockerfile
+      target: development
+    container_name: magazine_evaluation
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/magazine_extractor
+      - REDIS_URL=redis://redis:6379
+      - DEBUG=true
+      - LOG_LEVEL=INFO
+      - LOG_FORMAT=console
+    ports:
+      - "8002:8002"
+    volumes:
+      - ./services/evaluation:/app/services/evaluation
+      - ./shared:/app/shared
+      - pdf_data:/app/data
+      - ./logs:/app/logs
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - magazine_network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8002/health/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    command: ["uvicorn", "evaluation.main:app", "--host", "0.0.0.0", "--port", "8002", "--reload"]
+    develop:
+      watch:
+        - action: sync
+          path: ./services/evaluation
+          target: /app/services/evaluation
+
+  # Prometheus for metrics collection
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: magazine_prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./monitoring/rules:/etc/prometheus/rules:ro
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=15d'
+      - '--web.enable-lifecycle'
+      - '--web.enable-admin-api'
+    networks:
+      - magazine_network
+    restart: unless-stopped
+    depends_on:
+      - orchestrator
+      - model-service
+      - evaluation
+
+  # Grafana for monitoring dashboards
+  grafana:
+    image: grafana/grafana:latest
+    container_name: magazine_grafana
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_INSTALL_PLUGINS=grafana-clock-panel,grafana-simple-json-datasource
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources:ro
+      - ./monitoring/grafana/dashboard-configs:/var/lib/grafana/dashboards:ro
+    networks:
+      - magazine_network
+    restart: unless-stopped
+    depends_on:
+      - prometheus
+    user: "472"
+
+  # Node Exporter for system metrics
+  node-exporter:
+    image: prom/node-exporter:latest
+    container_name: magazine_node_exporter
+    ports:
+      - "9100:9100"
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.rootfs=/rootfs'
+      - '--path.sysfs=/host/sys'
+      - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
+    networks:
+      - magazine_network
+    restart: unless-stopped
+
+  # Redis Exporter for Redis metrics
+  redis-exporter:
+    image: oliver006/redis_exporter:latest
+    container_name: magazine_redis_exporter
+    environment:
+      - REDIS_ADDR=redis://redis:6379
+    ports:
+      - "9121:9121"
+    networks:
+      - magazine_network
+    restart: unless-stopped
+    depends_on:
+      - redis
+
+  # Postgres Exporter for PostgreSQL metrics
+  postgres-exporter:
+    image: prometheuscommunity/postgres-exporter:latest
+    container_name: magazine_postgres_exporter
+    environment:
+      - DATA_SOURCE_NAME=postgresql://postgres:postgres@postgres:5432/magazine_extractor?sslmode=disable
+    ports:
+      - "9187:9187"
+    networks:
+      - magazine_network
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  # Celery Flower for task monitoring
+  flower:
+    image: mher/flower:latest
+    container_name: magazine_flower
+    environment:
+      - CELERY_BROKER_URL=redis://redis:6379
+      - FLOWER_PORT=5555
+    ports:
+      - "5555:5555"
+    networks:
+      - magazine_network
+    restart: unless-stopped
+    depends_on:
+      - redis
+      - orchestrator-worker
+
+# Networks
+networks:
+  magazine_network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+
+# Volumes
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  prometheus_data:
+    driver: local
+  grafana_data:
+    driver: local
+  pdf_data:
+    driver: local
+  model_cache:
+    driver: local
+  quarantine_data:
+    driver: local
