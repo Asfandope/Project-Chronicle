@@ -6,11 +6,13 @@
 
 • **Distinct Approach**: Uses a dual-pass architecture with layout-aware language models - first pass creates a semantic graph of page elements, second pass traverses the graph to reconstruct articles using constrained decoding directly to XML.
 
+• **Generalist-First Architecture**: Features a master generalist model trained on diverse publications for unknown brands, with optional specialist models for enhanced accuracy on critical publications. Three-tier fallback ensures robust processing: brand-specific → generalist → base model.
+
 • **Self-Healing**: Continuously evaluates accuracy using synthetic gold sets and automatically fine-tunes graph traversal rules and confidence thresholds when drift is detected.
 
 • **Zero Human Touch**: No manual QA or approval steps; outputs are automatically quarantined if accuracy drops below threshold until the system self-recovers.
 
-• **Brand Agnostic**: All brand-specific quirks are expressed as YAML configurations and graph traversal rules, not code.
+• **Universal Processing**: Handles both known publications with specialist models and unknown publications with the generalist model, all expressed through YAML configurations rather than code.
 
 ## 2. Goals & Non-Goals
 
@@ -39,10 +41,15 @@
 **Primary Flow:**
 1. PDFs deposited in watched directory or S3 bucket
 2. System detects new files and queues for processing
-3. Dual-pass extraction creates semantic graph and traverses to XML
-4. Accuracy evaluation against synthetic gold standard
-5. Outputs written to XML/images/CSV or quarantined if below threshold
-6. Drift detection triggers auto-tuning if needed
+3. **Brand identification** from filename or content analysis determines model selection:
+   - Known brand → Load brand-specific specialist model (highest accuracy)
+   - Unknown brand → Load generalist model (trained on diverse publications)
+   - Fallback → Base LayoutLM model if neither available
+4. Dual-pass extraction creates semantic graph and traverses to XML using selected model
+5. Accuracy evaluation against synthetic gold standard
+6. Outputs written to XML/images/CSV or quarantined if below threshold
+7. **Unknown brand workflow**: Low-confidence extractions may be flagged for potential training data collection
+8. Drift detection triggers auto-tuning if needed
 
 ## 4. Canonical XML Contract
 
@@ -119,6 +126,48 @@
 - Match images to closest caption blocks using spatial proximity
 - Generate deterministic filenames: `{issue_date}_{article_id}_{sequence}.jpg`
 - **Acceptance**: 99% correct image-caption pairing, 100% of images extracted
+
+## 6. Model Architecture Strategy
+
+### 6.1 Three-Tier Model Hierarchy
+The system employs an intelligent model selection strategy optimized for both known and unknown publications:
+
+**Tier 1: Brand-Specific Specialist Models**
+- Fine-tuned LayoutLM models for critical publications (Economist, Time, Newsweek, Vogue)
+- Highest accuracy with brand-specific layout understanding
+- Optimized for publication-specific quirks and formatting patterns
+- **Usage**: Automatically selected when brand is identified from filename/content
+
+**Tier 2: Master Generalist Model**  
+- Single LayoutLM model trained on diverse publication data from all brands
+- Robust performance across unknown magazine and newspaper layouts
+- Handles wide variety of column structures, typography, and content organization
+- **Usage**: Default fallback for unrecognized publications
+- **Training**: Combined dataset from all brand ground truth data (15 epochs for diversity)
+
+**Tier 3: Base LayoutLM Model**
+- Microsoft's pre-trained LayoutLMv3-Large model
+- Final fallback when neither specialist nor generalist models are available
+- Provides baseline document understanding capabilities
+- **Usage**: Emergency fallback during system initialization or model failures
+
+### 6.2 Model Training Pipeline
+**Specialist Model Training**: `make train-brand BRAND=economist` 
+- Brand-specific hyperparameter optimization
+- Focused on publication's unique layout characteristics  
+- Individual model deployment and version management
+
+**Generalist Model Training**: `make train-generalist`
+- Aggregates training data from all brand directories
+- Extended training (15 epochs) for cross-publication generalization
+- Single model handles diverse publication layouts
+- **Acceptance**: >95% accuracy on unseen publication layouts
+
+### 6.3 Automatic Model Selection
+1. **Brand Identification**: Filename parsing or content analysis determines publication
+2. **Model Loading**: Three-tier fallback ensures robust processing
+3. **Performance Monitoring**: Track accuracy per model tier for optimization
+4. **Continuous Improvement**: Unknown brand extractions seed generalist model retraining
 
 ### 5.8 Export Pipeline
 - XML generation using constrained decoding (guarantees schema compliance)

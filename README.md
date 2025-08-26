@@ -5,10 +5,11 @@ A fully automated system that extracts articles from heterogeneous magazine/news
 ## 🎯 Key Features
 
 - **Dual-Pass Architecture**: Layout-aware language models create semantic graphs, then traverse them to reconstruct articles
-- **99.9% Accuracy**: Field-level accuracy with automatic quality assurance
+- **Generalist-First Model Strategy**: Master generalist model handles unknown publications, with specialist models for enhanced accuracy on critical brands
+- **99.9% Accuracy**: Field-level accuracy with automatic quality assurance and three-tier model fallback
 - **Self-Healing**: Continuous evaluation with synthetic gold sets and automatic fine-tuning when drift is detected
 - **Zero Human Touch**: No manual QA or approval steps; outputs are automatically quarantined if accuracy drops below threshold
-- **Brand Agnostic**: All brand-specific quirks expressed as YAML configurations, not code
+- **Universal Processing**: Handles both known and unknown publications through intelligent model selection and YAML configuration
 - **CPU/GPU Flexible**: Designed for both CPU and GPU deployment
 
 ## 🏗️ Architecture
@@ -28,11 +29,16 @@ The system consists of three core services:
 - **Purpose**: AI/ML models for content extraction
 - **Tech Stack**: FastAPI, PyTorch, Transformers, Tesseract, OpenCV
 - **Responsibilities**:
-  - Layout analysis using LayoutLM
+  - **Intelligent model selection**: Three-tier hierarchy (brand-specific → generalist → base LayoutLM)
+  - Layout analysis using LayoutLMv3-Large with brand-optimized fine-tuning
   - OCR processing (born-digital + scanned)
   - Article reconstruction via graph traversal
   - Contributor extraction with NER
   - Image extraction and caption linking
+- **Model Architecture**:
+  - **Specialist models**: Brand-specific fine-tuned LayoutLM for critical publications
+  - **Generalist model**: Master model trained on diverse publications for unknown brands
+  - **Automatic fallback**: Ensures robust processing regardless of publication type
 
 ### 3. Evaluation Service (`services/evaluation/`)
 - **Purpose**: Accuracy evaluation, drift detection, and auto-tuning
@@ -106,11 +112,49 @@ Monitor job progress:
 curl "http://localhost:8000/api/v1/jobs/{job_id}"
 ```
 
+## 🚀 Model Training
+
+The system provides comprehensive model training capabilities for both specialist and generalist models:
+
+### Generalist Model Training
+Train a master model on all brand data for handling unknown publications:
+
+```bash
+# Train generalist model on combined dataset
+make train-generalist
+
+# This aggregates data from all brands and trains for 15 epochs
+# Model saved to: models/fine_tuned/generalist/
+```
+
+### Brand-Specific Training
+Train specialist models for enhanced accuracy on critical publications:
+
+```bash
+# Train individual brand models
+make train-brand BRAND=economist
+make train-brand BRAND=time
+make train-brand BRAND=newsweek
+make train-brand BRAND=vogue
+
+# View all training experiments
+make training-summary
+```
+
+### Model Management
+The system automatically selects the best available model for each publication:
+
+1. **Brand Identified** → Load specialist model (highest accuracy)
+2. **Unknown Brand** → Load generalist model (robust cross-publication)  
+3. **Fallback** → Base LayoutLMv3-Large model
+
 ## 📋 Processing Pipeline
 
 1. **Ingestion**: PDF validation and metadata extraction
-2. **Preprocessing**: Page splitting and preparation
-3. **Layout Analysis**: LayoutLM-based block classification and semantic graph creation
+2. **Brand Detection**: Filename analysis and content-based identification
+3. **Model Selection**: Intelligent three-tier model hierarchy
+4. **Preprocessing**: Page splitting and preparation
+5. **Layout Analysis**: LayoutLM-based block classification and semantic graph creation
 4. **OCR**: Text extraction (direct from born-digital, Tesseract for scanned)
 5. **Article Reconstruction**: Graph traversal to rebuild complete articles
 6. **Contributor Parsing**: NER-based name and role extraction

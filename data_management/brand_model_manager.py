@@ -44,7 +44,7 @@ class BrandModelManager:
     
     def __init__(
         self,
-        base_model_name: str = "microsoft/layoutlmv3-base",
+        base_model_name: str = "microsoft/layoutlmv3-large",
         fine_tuned_models_dir: Path = None,
         device: Optional[str] = None
     ):
@@ -191,8 +191,15 @@ class BrandModelManager:
             return model_key
         
         if brand not in self.brand_models:
-            self.logger.warning("No fine-tuned model for brand, using base", brand=brand)
-            return self.load_base_model()
+            self.logger.warning("No fine-tuned model for brand", brand=brand)
+            # Check if generalist model exists before falling back to base
+            generalist_model_path = self.fine_tuned_models_dir / "generalist"
+            if generalist_model_path.exists() and "generalist" in self.brand_models:
+                self.logger.info("Using generalist model as fallback", brand=brand)
+                return self.load_brand_model("generalist")
+            else:
+                self.logger.info("No generalist model available, using base model", brand=brand)
+                return self.load_base_model()
         
         model_path = Path(self.brand_models[brand])
         self.logger.info("Loading brand model", brand=brand, path=str(model_path))

@@ -131,45 +131,30 @@ download-models: ## Download required ML models
 setup-gold-sets: ## Initialize gold standard dataset directory structure
 	@echo "📊 Setting up gold standard datasets..."
 	mkdir -p data/gold_sets/{economist,time,newsweek,vogue}/{pdfs,ground_truth,annotations,metadata}
+	mkdir -p workspaces/{tasks,templates,completed,reports}
+	mkdir -p data/gold_sets/staging
 	@echo "📁 Created complete gold set directory structure"
 	@echo "📋 Directory structure:"
 	@echo "  data/gold_sets/{brand}/pdfs/        - Original PDF files"
 	@echo "  data/gold_sets/{brand}/ground_truth/ - XML ground truth files" 
 	@echo "  data/gold_sets/{brand}/annotations/  - Human annotations"
 	@echo "  data/gold_sets/{brand}/metadata/     - File metadata"
+	@echo "  workspaces/                         - Annotation workspaces"
 	@echo ""
 	@echo "🔧 Next steps:"
 	@echo "  1. Add PDF files: make ingest-pdfs SOURCE=/path/to/pdfs BRAND=economist"
 	@echo "  2. Add ground truth: make ingest-xml SOURCE=/path/to/xml BRAND=economist"
 	@echo "  3. Validate dataset: make validate-gold-sets BRAND=economist"
+	@echo "  4. Use annotation workflow: make curate-datasets"
 
 validate-gold-sets: ## Validate gold standard datasets (usage: make validate-gold-sets BRAND=economist)
-	@echo "🔍 Validating gold standard datasets..."
+	@echo "🔍 Validating gold standard datasets with new validation pipeline..."
 	@if [ -z "$(BRAND)" ]; then \
 		echo "🔍 Validating all brands..."; \
-		python -c "from data_management.schema_validator import DatasetValidator; import sys; \
-		validator = DatasetValidator(); \
-		brands = ['economist', 'time', 'newsweek', 'vogue']; \
-		all_passed = True; \
-		for brand in brands: \
-			print(f'\\n=== Validating {brand} ==='); \
-			report = validator.validate_brand_dataset(brand); \
-			print(f'Files: {report.total_files}, Valid: {report.valid_files}, Rate: {report.validation_rate:.1f}%'); \
-			if report.recommendations: print('Recommendations:', '\\n'.join(report.recommendations[:3])); \
-			if report.validation_rate < 100: all_passed = False; \
-		sys.exit(0 if all_passed else 1)"; \
+		cd tools && python3 validation_pipeline.py --base-path ../data/gold_sets --threshold-check; \
 	else \
-		python -c "from data_management.schema_validator import DatasetValidator; import sys; \
-		validator = DatasetValidator(); \
-		report = validator.validate_brand_dataset('$(BRAND)'); \
-		print(f'=== $(BRAND) Validation Results ==='); \
-		print(f'Total Files: {report.total_files}'); \
-		print(f'Valid Files: {report.valid_files}'); \
-		print(f'Validation Rate: {report.validation_rate:.1f}%'); \
-		print(f'Avg Quality Score: {report.average_quality_score:.3f}'); \
-		if report.recommendations: print('\\nRecommendations:'); [print(f'- {r}') for r in report.recommendations]; \
-		print('\\n✅ Validation passed' if report.validation_rate == 100 else '❌ Validation issues found'); \
-		sys.exit(0 if report.validation_rate == 100 else 1)"; \
+		echo "🔍 Validating $(BRAND)..."; \
+		cd tools && python3 validation_pipeline.py --brand $(BRAND) --base-path ../data/gold_sets --threshold-check; \
 	fi
 
 validate-xml: ## Validate XML ground truth files (usage: make validate-xml BRAND=economist FILE=optional_file.xml)
@@ -230,27 +215,10 @@ ingest-xml: ## Ingest XML ground truth files (usage: make ingest-xml SOURCE=/pat
 	if report.warnings: print('Warnings:', '\\n'.join(report.warnings[:3]));"
 
 gold-sets-report: ## Generate comprehensive gold standard dataset report
-	@echo "📊 Generating gold standard dataset report..."
-	@python -c "from data_management.schema_validator import DatasetValidator; \
-	from data_management.ingestion import DataIngestionManager; \
-	from datetime import datetime; \
-	import json; \
-	validator = DatasetValidator(); \
-	ingestion = DataIngestionManager(); \
-	brands = ['economist', 'time', 'newsweek', 'vogue']; \
-	report = {'timestamp': datetime.now().isoformat(), 'brands': {}}; \
-	print('=== GOLD STANDARD DATASETS REPORT ===\\n'); \
-	for brand in brands: \
-		validation_report = validator.validate_brand_dataset(brand); \
-		manifest = ingestion.create_dataset_manifest(brand); \
-		report['brands'][brand] = {'validation': validation_report.__dict__, 'manifest': manifest}; \
-		print(f'📁 {brand.upper()}:'); \
-		print(f'   Files: {validation_report.total_files} | Valid: {validation_report.valid_files} | Rate: {validation_report.validation_rate:.1f}%'); \
-		if 'statistics' in manifest: print(f'   PDFs: {manifest[\"statistics\"][\"total_pdfs\"]} | XML: {manifest[\"statistics\"][\"total_ground_truth\"]}'); \
-		if validation_report.recommendations: print(f'   Top Rec: {validation_report.recommendations[0]}'); \
-		print(); \
-	with open('gold_sets_report.json', 'w') as f: json.dump(report, f, indent=2, default=str); \
-	print('📋 Detailed report saved to: gold_sets_report.json');"
+	@echo "📊 Generating gold standard dataset report with new tools..."
+	@cd tools && python3 dataset_curator.py report --base-path ../data/gold_sets --output ../gold_sets_report.json
+	@cd tools && python3 validation_pipeline.py --base-path ../data/gold_sets --output ../validation_report.json
+	@echo "📋 Reports saved to: gold_sets_report.json and validation_report.json"
 
 create-dataset-manifest: ## Create dataset manifest for brand (usage: make create-dataset-manifest BRAND=economist)  
 	@echo "📋 Creating dataset manifest..."
@@ -302,6 +270,10 @@ train-all: ## Train LayoutLM for all brands sequentially
 train-parallel: ## Train LayoutLM for all brands in parallel
 	@echo "🚀 Training LayoutLM for all brands in parallel..."
 	@python scripts/train_all_brands.py --parallel
+
+train-generalist: ## Train a single generalist model on all brand data
+	@echo "🚀 Training a single 'generalist' model on all brand data..."
+	@python scripts/train_generalist.py
 
 training-summary: ## Show training experiments summary
 	@echo "📊 Training experiments summary..."
@@ -369,6 +341,66 @@ check-config-consistency: ## Check configuration consistency across brands
 
 config-help: ## Show configuration CLI help
 	poetry run python scripts/config_cli.py --help
+
+# Dataset Curation and Annotation Workflow
+curate-datasets: ## Run complete dataset curation workflow
+	@echo "🎯 Starting dataset curation workflow..."
+	@echo "📊 This will create high-quality annotated datasets for gold standard"
+	@echo "🔧 Setting up directories..."
+	@make setup-gold-sets
+	@echo "📋 Ready for dataset curation!"
+	@echo ""
+	@echo "Next steps:"
+	@echo "  1. Analyze PDFs: cd tools && python3 dataset_curator.py analyze --pdf /path/to/file.pdf --brand economist"
+	@echo "  2. Create annotation task: cd tools && python3 annotation_workflow.py create --brand economist --pdf /path/to/file.pdf --annotator alice"
+	@echo "  3. Generate ground truth: cd tools && python3 ground_truth_generator.py template --brand economist --output template.xml"
+	@echo "  4. Validate results: make validate-gold-sets BRAND=economist"
+
+curate-pdf: ## Analyze and curate a single PDF (usage: make curate-pdf PDF=/path/to/file.pdf BRAND=economist)
+	@echo "🔍 Analyzing PDF for curation..."
+	@if [ -z "$(PDF)" ] || [ -z "$(BRAND)" ]; then \
+		echo "❌ Usage: make curate-pdf PDF=/path/to/file.pdf BRAND=economist"; \
+		exit 1; \
+	fi
+	@cd tools && python3 dataset_curator.py analyze --pdf "$(PDF)" --brand "$(BRAND)"
+	@echo "✅ Analysis complete. Review output above for quality assessment."
+
+create-annotation-task: ## Create annotation task (usage: make create-annotation-task PDF=/path/to/file.pdf BRAND=economist ANNOTATOR=alice)
+	@echo "📝 Creating annotation task..."
+	@if [ -z "$(PDF)" ] || [ -z "$(BRAND)" ] || [ -z "$(ANNOTATOR)" ]; then \
+		echo "❌ Usage: make create-annotation-task PDF=/path/to/file.pdf BRAND=economist ANNOTATOR=alice"; \
+		exit 1; \
+	fi
+	@cd tools && python3 annotation_workflow.py create --pdf "$(PDF)" --brand "$(BRAND)" --annotator "$(ANNOTATOR)" --priority 5
+	@echo "✅ Annotation task created successfully"
+
+batch-create-tasks: ## Create annotation tasks for all PDFs in directory (usage: make batch-create-tasks PDF_DIR=/path/to/pdfs BRAND=economist ANNOTATOR=alice)
+	@echo "📝 Creating batch annotation tasks..."
+	@if [ -z "$(PDF_DIR)" ] || [ -z "$(BRAND)" ] || [ -z "$(ANNOTATOR)" ]; then \
+		echo "❌ Usage: make batch-create-tasks PDF_DIR=/path/to/pdfs BRAND=economist ANNOTATOR=alice"; \
+		exit 1; \
+	fi
+	@cd tools && python3 annotation_workflow.py batch --pdf-dir "$(PDF_DIR)" --brand "$(BRAND)" --annotator "$(ANNOTATOR)" --priority 5
+	@echo "✅ Batch annotation tasks created successfully"
+
+validate-annotations: ## Validate completed annotation tasks
+	@echo "✅ Validating completed annotations..."
+	@cd tools && python3 annotation_workflow.py validate --batch-size 10
+	@echo "📊 Validation complete. Check output above for results."
+
+annotation-report: ## Generate annotation workflow report
+	@echo "📊 Generating annotation workflow report..."
+	@cd tools && python3 annotation_workflow.py report --output ../annotation_report.json
+	@echo "📋 Report saved to: annotation_report.json"
+
+generate-ground-truth: ## Generate ground truth template (usage: make generate-ground-truth BRAND=economist ISSUE_ID=sample_issue OUTPUT=template.xml)
+	@echo "📄 Generating ground truth template..."
+	@if [ -z "$(BRAND)" ] || [ -z "$(ISSUE_ID)" ] || [ -z "$(OUTPUT)" ]; then \
+		echo "❌ Usage: make generate-ground-truth BRAND=economist ISSUE_ID=sample_issue OUTPUT=template.xml"; \
+		exit 1; \
+	fi
+	@cd tools && python3 ground_truth_generator.py template --brand "$(BRAND)" --issue-id "$(ISSUE_ID)" --output "$(OUTPUT)" --pages 1
+	@echo "✅ Ground truth template created: $(OUTPUT)"
 
 # Utilities
 check-deps: ## Check for dependency updates

@@ -1,0 +1,62 @@
+brand: generic
+version: "1.0"
+description: "Default fallback configuration for unknown magazines and newspapers"
+
+layout_hints:
+  # More forgiving for a wider variety of layouts
+  column_count: [1, 2, 3, 4]
+  title_patterns:
+    - "^[A-Z][a-zA-Z\\s,:''()-]+$" # General pattern for titles
+  jump_indicators:
+    - "continued on page"
+    - "continued from page"
+    - "see page"
+    - "turn to"
+  header_footer_patterns: [] # Keep empty for generic
+
+ocr_preprocessing:
+  # A safe, general-purpose OCR setup
+  deskew: true
+  denoise_level: 1
+  enhance_contrast: false
+  tesseract_config: "--oem 3 --psm 3" # PSM 3 is more flexible for unknown layouts
+  confidence_threshold: 0.65
+  languages: ["eng"]
+
+confidence_overrides:
+  # Use conservative, lower thresholds for generic content
+  title: 0.85
+  body: 0.80
+  contributors: 0.75
+  images: 0.80
+  captions: 0.75
+
+reconstruction_rules:
+  # More flexible rules for unknown article structures
+  min_title_length: 3
+  max_title_length: 250
+  min_body_paragraphs: 1
+  spatial_threshold_pixels: 75 # Allow more distance between blocks
+  allow_cross_page_articles: true
+  max_jump_distance_pages: 10 # Allow larger jumps for unknown layouts
+
+ad_filtering:
+  visual_indicators:
+    - "high_image_ratio"
+  text_patterns:
+    - "Advertisement"
+    - "Sponsored by"
+    - "Subscribe"
+  confidence_threshold: 0.7
+
+contributor_patterns:
+  # Very generic patterns for contributors
+  author:
+    - "By\\s+([A-Z][a-z]+(?:\\s+[A-Z][a-z]*)*\\s+[A-Z][a-z]+)"
+    - "BY\\s+([A-Z][A-Z\\s]+)"
+  photographer:
+    - "Photo(?:graphy)?:?\\s+(?:by\\s+)?([A-Z][a-z]+(?:\\s+[A-Z][a-z]*)*\\s+[A-Z][a-z]+)"
+  illustrator:
+    - "Illustration:?\\s+(?:by\\s+)?([A-Z][a-z]+(?:\\s+[A-Z][a-z]*)*\\s+[A-Z][a-z]+)"
+
+custom_settings: {}

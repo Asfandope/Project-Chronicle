@@ -43,7 +43,7 @@ logger = structlog.get_logger(__name__)
 class TrainingConfig:
     """Configuration for LayoutLM training."""
     brand: str
-    model_name: str = "microsoft/layoutlmv3-base"
+    model_name: str = "microsoft/layoutlmv3-large"
     output_dir: str = "models/fine_tuned"
     
     # Training hyperparameters
