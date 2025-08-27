@@ -9,11 +9,11 @@ This script:
 4. Starts the application
 """
 
-import os
-import sys
-import subprocess
-import time
 import logging
+import os
+import subprocess
+import sys
+import time
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -23,13 +23,14 @@ def check_postgres():
     """Check if PostgreSQL is running using Python."""
     try:
         import psycopg2
+
         conn = psycopg2.connect(
             host="localhost",
             port=5432,
             user="postgres",
             password="postgres",
             database="magazine_extractor",
-            connect_timeout=5
+            connect_timeout=5,
         )
         conn.close()
         return True
@@ -44,7 +45,7 @@ def check_docker_postgres():
             ["docker", "ps", "--filter", "name=postgres", "--format", "{{.Names}}"],
             capture_output=True,
             text=True,
-            timeout=10
+            timeout=10,
         )
         return "postgres" in result.stdout
     except (subprocess.TimeoutExpired, FileNotFoundError):
@@ -56,11 +57,9 @@ def start_postgres_docker():
     logger.info("Starting PostgreSQL with docker-compose...")
     try:
         subprocess.run(
-            ["docker-compose", "up", "-d", "postgres"],
-            check=True,
-            timeout=60
+            ["docker-compose", "up", "-d", "postgres"], check=True, timeout=60
         )
-        
+
         # Wait for PostgreSQL to be ready
         for i in range(30):
             if check_postgres():
@@ -68,10 +67,10 @@ def start_postgres_docker():
                 return True
             logger.info(f"Waiting for PostgreSQL... ({i+1}/30)")
             time.sleep(2)
-        
+
         logger.error("PostgreSQL did not start in time")
         return False
-        
+
     except subprocess.CalledProcessError as e:
         logger.error(f"Failed to start PostgreSQL: {e}")
         return False
@@ -82,6 +81,7 @@ def setup_database():
     logger.info("Setting up database...")
     try:
         from database import init_database
+
         init_database()
         logger.info("Database initialized successfully")
         return True
@@ -109,12 +109,15 @@ def start_application():
     logger.info("Starting Project Chronicle application...")
     try:
         # Set environment variables
-        os.environ.setdefault("DATABASE_URL", "postgresql://postgres:postgres@localhost:5432/magazine_extractor")
+        os.environ.setdefault(
+            "DATABASE_URL",
+            "postgresql://postgres:postgres@localhost:5432/magazine_extractor",
+        )
         os.environ.setdefault("LOG_LEVEL", "info")
-        
+
         # Start the application
         subprocess.run([sys.executable, "main.py"])
-        
+
     except KeyboardInterrupt:
         logger.info("Application stopped by user")
     except Exception as e:
@@ -124,7 +127,7 @@ def start_application():
 def main():
     """Main startup sequence."""
     logger.info("🚀 Starting Project Chronicle local development setup...")
-    
+
     # Check if PostgreSQL is running
     if check_postgres():
         logger.info("✅ PostgreSQL is already running")
@@ -137,20 +140,20 @@ def main():
             if not start_postgres_docker():
                 logger.error("❌ Failed to start PostgreSQL")
                 sys.exit(1)
-    
+
     # Setup database
     if not setup_database():
         logger.error("❌ Database setup failed")
         sys.exit(1)
-    
+
     # Run tests
     logger.info("Running system tests...")
     if not run_tests():
         logger.warning("⚠️  Some tests failed, but continuing...")
         response = input("Continue anyway? (y/N): ")
-        if response.lower() != 'y':
+        if response.lower() != "y":
             sys.exit(1)
-    
+
     # Start application
     logger.info("✅ Starting application on http://localhost:8000")
     logger.info("📖 API documentation available at http://localhost:8000/docs")

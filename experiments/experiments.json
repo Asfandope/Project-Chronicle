@@ -55,5 +55,29 @@
     },
     "status": "created",
     "results": null
+  },
+  "generalist_20250825_154300_d7fb8ec6": {
+    "config": {
+      "experiment_id": "generalist_20250825_154300_d7fb8ec6",
+      "brand": "generalist",
+      "model_name": "microsoft/layoutlmv3-large",
+      "timestamp": "2025-08-25T15:43:00.491474",
+      "learning_rate": 2e-05,
+      "batch_size": 4,
+      "num_epochs": 15,
+      "max_sequence_length": 512,
+      "num_labels": 13,
+      "warmup_steps": 500,
+      "weight_decay": 0.01,
+      "description": "Generalist model trained on all available brand data.",
+      "tags": [
+        "generalist",
+        "layoutlm",
+        "multi-brand"
+      ]
+    },
+    "status": "running",
+    "results": null,
+    "start_time": "2025-08-25T15:43:00.491732"
   }
 }

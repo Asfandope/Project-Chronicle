@@ -6,18 +6,17 @@ Run performance benchmarks against gold standard datasets to measure
 system readiness for production deployment.
 """
 
-import sys
 import argparse
+import sys
 from pathlib import Path
 
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from data_management.benchmarks import (
-    run_brand_benchmark,
+    AccuracyTargetRegistry,
     run_all_brands_benchmark,
-    BenchmarkEvaluator,
-    AccuracyTargetRegistry
+    run_brand_benchmark,
 )
 
 
@@ -32,46 +31,38 @@ Examples:
   %(prog)s economist                # Run benchmark for economist only
   %(prog)s --targets               # List all accuracy targets
   %(prog)s vogue --verbose         # Run vogue benchmark with detailed output
-        """
+        """,
     )
-    
+
     parser.add_argument(
         "brand",
         nargs="?",
         choices=["economist", "time", "newsweek", "vogue"],
-        help="Brand to benchmark (if not specified, use --all)"
+        help="Brand to benchmark (if not specified, use --all)",
     )
-    
+
     parser.add_argument(
-        "--all",
-        action="store_true",
-        help="Run benchmarks for all brands"
+        "--all", action="store_true", help="Run benchmarks for all brands"
     )
-    
+
     parser.add_argument(
         "--targets",
         action="store_true",
-        help="List all accuracy targets and thresholds"
+        help="List all accuracy targets and thresholds",
     )
-    
+
+    parser.add_argument("--verbose", action="store_true", help="Enable verbose output")
+
     parser.add_argument(
-        "--verbose",
-        action="store_true",
-        help="Enable verbose output"
+        "--output", type=Path, help="Output file for detailed results (JSON format)"
     )
-    
-    parser.add_argument(
-        "--output",
-        type=Path,
-        help="Output file for detailed results (JSON format)"
-    )
-    
+
     args = parser.parse_args()
-    
+
     if args.targets:
         print_accuracy_targets()
         return
-    
+
     if args.all:
         print("🎯 Running comprehensive benchmark evaluation...")
         run_all_brands_benchmark()
@@ -88,19 +79,21 @@ def print_accuracy_targets():
     """Print all accuracy targets in a readable format."""
     registry = AccuracyTargetRegistry()
     targets = registry.list_all_targets()
-    
+
     print("🎯 ACCURACY TARGETS FOR PROJECT CHRONICLE")
     print("=" * 60)
-    
+
     for component_name, component_targets in targets.items():
         print(f"\n📊 {component_name.replace('_', ' ').title()}")
         print("-" * 40)
-        
+
         for metric_name, target in component_targets.items():
             print(f"  • {metric_name}:")
             print(f"    Production:  {target['production_threshold']} {target['unit']}")
             print(f"    Acceptable:  {target['acceptable_threshold']} {target['unit']}")
-            print(f"    Needs Work:  {target['improvement_threshold']} {target['unit']}")
+            print(
+                f"    Needs Work:  {target['improvement_threshold']} {target['unit']}"
+            )
             print(f"    Description: {target['description']}")
             print()
 

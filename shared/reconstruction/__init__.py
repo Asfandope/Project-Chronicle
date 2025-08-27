@@ -7,21 +7,20 @@ and ambiguous connections.
 """
 
 from .reconstructor import ArticleReconstructor, ReconstructedArticle
-from .traversal import GraphTraversal, TraversalPath
 from .resolver import AmbiguityResolver, ConnectionScore
+from .traversal import GraphTraversal, TraversalPath
 from .types import (
-    ArticleBoundary, 
+    ArticleBoundary,
     ContinuationMarker,
+    ReconstructionConfig,
     ReconstructionError,
-    ReconstructionConfig
 )
 
 __all__ = [
     # Core classes
     "ArticleReconstructor",
-    "GraphTraversal", 
+    "GraphTraversal",
     "AmbiguityResolver",
-    
     # Data types
     "ReconstructedArticle",
     "TraversalPath",
@@ -29,7 +28,6 @@ __all__ = [
     "ArticleBoundary",
     "ContinuationMarker",
     "ReconstructionConfig",
-    
     # Exceptions
     "ReconstructionError",
 ]

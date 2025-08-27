@@ -1,24 +1,21 @@
 """Alembic environment configuration for Orchestrator service."""
 
-from logging.config import fileConfig
 import os
 import sys
+from logging.config import fileConfig
 from pathlib import Path
 
-from sqlalchemy import engine_from_config
-from sqlalchemy import pool
+from sqlalchemy import engine_from_config, pool
+
 from alembic import context
 
 # Add the project root to the path
 project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
 
-# Import all models to ensure they're registered with Base.metadata
-from services.orchestrator.models import (
-    Job, ProcessingState, BrandConfigHistory, BrandConfigAuditLog,
-    DriftMeasurement, DriftAlert, ModelVersion, ModelDeployment
-)
 from services.orchestrator.core.database import Base
+
+# Import all models to ensure they're registered with Base.metadata
 
 # this is the Alembic Config object
 config = context.config
@@ -31,9 +28,9 @@ if config.config_file_name is not None:
 target_metadata = Base.metadata
 
 # Get database URL from environment if available
-database_url = os.getenv('DATABASE_URL')
+database_url = os.getenv("DATABASE_URL")
 if database_url:
-    config.set_main_option('sqlalchemy.url', database_url)
+    config.set_main_option("sqlalchemy.url", database_url)
 
 
 def run_migrations_offline() -> None:
@@ -62,7 +59,7 @@ def run_migrations_online() -> None:
 
     with connectable.connect() as connection:
         context.configure(
-            connection=connection, 
+            connection=connection,
             target_metadata=target_metadata,
             compare_type=True,
             compare_server_default=True,

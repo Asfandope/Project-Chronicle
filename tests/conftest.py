@@ -1,23 +1,28 @@
-import pytest
 import asyncio
-from typing import AsyncGenerator, Generator
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
-from sqlalchemy.orm import sessionmaker
-from httpx import AsyncClient
-import tempfile
 import shutil
+import tempfile
 from pathlib import Path
+from typing import AsyncGenerator, Generator
+
+import pytest
+from httpx import AsyncClient
+from model_service.main import create_app as create_model_service_app
 
 # Import all services for testing
 from orchestrator.main import create_app as create_orchestrator_app
-from model_service.main import create_app as create_model_service_app  
-from evaluation_service.main import create_app as create_evaluation_app
 from orchestrator.models import Base as OrchestratorBase
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
+from sqlalchemy.orm import sessionmaker
+
+from evaluation_service.main import create_app as create_evaluation_app
 from evaluation_service.models import Base as EvaluationBase
 
 # Test database URL
-TEST_DATABASE_URL = "postgresql+asyncpg://postgres:postgres@localhost:5432/test_magazine_extractor"
+TEST_DATABASE_URL = (
+    "postgresql+asyncpg://postgres:postgres@localhost:5432/test_magazine_extractor"
+)
 TEST_REDIS_URL = "redis://localhost:6379/1"  # Use database 1 for tests
+
 
 @pytest.fixture(scope="session")
 def event_loop() -> Generator[asyncio.AbstractEventLoop, None, None]:
@@ -26,24 +31,26 @@ def event_loop() -> Generator[asyncio.AbstractEventLoop, None, None]:
     yield loop
     loop.close()
 
+
 @pytest.fixture(scope="session")
 async def test_engine():
     """Create test database engine."""
     engine = create_async_engine(TEST_DATABASE_URL, echo=True)
-    
+
     # Create all tables
     async with engine.begin() as conn:
         await conn.run_sync(OrchestratorBase.metadata.create_all)
         await conn.run_sync(EvaluationBase.metadata.create_all)
-    
+
     yield engine
-    
+
     # Clean up
     async with engine.begin() as conn:
         await conn.run_sync(OrchestratorBase.metadata.drop_all)
         await conn.run_sync(EvaluationBase.metadata.drop_all)
-    
+
     await engine.dispose()
+
 
 @pytest.fixture
 async def test_db_session(test_engine) -> AsyncGenerator[AsyncSession, None]:
@@ -51,10 +58,11 @@ async def test_db_session(test_engine) -> AsyncGenerator[AsyncSession, None]:
     TestSessionLocal = sessionmaker(
         test_engine, class_=AsyncSession, expire_on_commit=False
     )
-    
+
     async with TestSessionLocal() as session:
         yield session
         await session.rollback()
+
 
 @pytest.fixture
 def temp_directory() -> Generator[Path, None, None]:
@@ -63,57 +71,61 @@ def temp_directory() -> Generator[Path, None, None]:
     yield temp_dir
     shutil.rmtree(temp_dir)
 
+
 @pytest.fixture
 async def orchestrator_client(test_db_session) -> AsyncGenerator[AsyncClient, None]:
     """Create test client for orchestrator service."""
     app = create_orchestrator_app()
-    
+
     # Override database dependency
     async def override_get_db():
         yield test_db_session
-    
+
     app.dependency_overrides["orchestrator.core.database.get_db"] = override_get_db
-    
+
     async with AsyncClient(app=app, base_url="http://test") as client:
         yield client
+
 
 @pytest.fixture
 async def model_service_client() -> AsyncGenerator[AsyncClient, None]:
     """Create test client for model service."""
     app = create_model_service_app()
-    
+
     async with AsyncClient(app=app, base_url="http://test") as client:
         yield client
+
 
 @pytest.fixture
 async def evaluation_client(test_db_session) -> AsyncGenerator[AsyncClient, None]:
     """Create test client for evaluation service."""
     app = create_evaluation_app()
-    
+
     # Override database dependency
     async def override_get_db():
         yield test_db_session
-    
+
     app.dependency_overrides["evaluation_service.main.get_db"] = override_get_db
-    
+
     async with AsyncClient(app=app, base_url="http://test") as client:
         yield client
+
 
 @pytest.fixture
 def sample_pdf_content() -> bytes:
     """Generate sample PDF content for testing."""
     # This would typically be a real PDF file
     # For now, return mock PDF header
-    return b'%PDF-1.4\n%\xe2\xe3\xcf\xd3\n' + b'Mock PDF content for testing' + b'\n%%EOF'
+    return (
+        b"%PDF-1.4\n%\xe2\xe3\xcf\xd3\n" + b"Mock PDF content for testing" + b"\n%%EOF"
+    )
+
 
 @pytest.fixture
 def sample_job_data() -> dict:
     """Sample job creation data."""
-    return {
-        "filename": "test_magazine.pdf",
-        "brand": "economist",
-        "file_size": 1024000
-    }
+    return {"filename": "test_magazine.pdf", "brand": "economist", "file_size": 1024000}
+
 
 @pytest.fixture
 def sample_layout_data() -> dict:
@@ -127,28 +139,33 @@ def sample_layout_data() -> dict:
                         "type": "title",
                         "bbox": [100, 100, 400, 150],
                         "text": "Sample Article Title",
-                        "confidence": 0.95
+                        "confidence": 0.95,
                     },
                     {
                         "id": "block_1_2",
-                        "type": "body", 
+                        "type": "body",
                         "bbox": [100, 200, 400, 500],
                         "text": "Sample article body text...",
-                        "confidence": 0.92
-                    }
+                        "confidence": 0.92,
+                    },
                 ]
             }
         },
         "semantic_graph": {
             "nodes": [
                 {"id": "block_1_1", "type": "title", "page": 1},
-                {"id": "block_1_2", "type": "body", "page": 1}
+                {"id": "block_1_2", "type": "body", "page": 1},
             ],
             "edges": [
-                {"from": "block_1_1", "to": "block_1_2", "relationship": "title_to_body"}
-            ]
-        }
+                {
+                    "from": "block_1_1",
+                    "to": "block_1_2",
+                    "relationship": "title_to_body",
+                }
+            ],
+        },
     }
+
 
 @pytest.fixture
 def sample_gold_standard() -> dict:
@@ -157,37 +174,31 @@ def sample_gold_standard() -> dict:
         "title": "Sample Article Title",
         "body": "Sample article body text content...",
         "contributors": [
-            {
-                "name": "John Smith",
-                "normalized_name": "Smith, John", 
-                "role": "author"
-            }
+            {"name": "John Smith", "normalized_name": "Smith, John", "role": "author"}
         ],
-        "images": [
-            {
-                "filename": "image_001.jpg",
-                "caption": "Sample image caption"
-            }
-        ]
+        "images": [{"filename": "image_001.jpg", "caption": "Sample image caption"}],
     }
+
 
 @pytest.fixture(scope="session")
 def celery_config():
     """Celery configuration for testing."""
     return {
-        'broker_url': TEST_REDIS_URL,
-        'result_backend': TEST_REDIS_URL,
-        'task_always_eager': True,  # Execute tasks synchronously for testing
-        'task_eager_propagates': True,
+        "broker_url": TEST_REDIS_URL,
+        "result_backend": TEST_REDIS_URL,
+        "task_always_eager": True,  # Execute tasks synchronously for testing
+        "task_eager_propagates": True,
     }
+
 
 # Markers for different test categories
 pytest_plugins = ["pytest_asyncio"]
 
+
 def pytest_configure(config):
     """Configure pytest markers."""
     config.addinivalue_line("markers", "unit: mark test as unit test")
-    config.addinivalue_line("markers", "integration: mark test as integration test") 
+    config.addinivalue_line("markers", "integration: mark test as integration test")
     config.addinivalue_line("markers", "api: mark test as API test")
     config.addinivalue_line("markers", "performance: mark test as performance test")
     config.addinivalue_line("markers", "slow: mark test as slow running")

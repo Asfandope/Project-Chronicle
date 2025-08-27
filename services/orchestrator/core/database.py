@@ -1,10 +1,9 @@
+import structlog
+from orchestrator.core.config import get_settings
 from sqlalchemy import create_engine
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
-import structlog
-
-from orchestrator.core.config import get_settings
 
 logger = structlog.get_logger()
 settings = get_settings()
@@ -24,6 +23,7 @@ AsyncSessionLocal = sessionmaker(
 
 Base = declarative_base()
 
+
 async def get_db() -> AsyncSession:
     async with AsyncSessionLocal() as session:
         try:
@@ -31,10 +31,10 @@ async def get_db() -> AsyncSession:
         finally:
             await session.close()
 
+
 async def init_db():
     logger.info("Initializing database")
     # Import models to ensure they're registered
-    from orchestrator.models import job, processing_state
-    
+
     async with async_engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)

@@ -109,8 +109,8 @@ faker = "^20.1.0"
 
 # GPU-only dependencies for accelerated inference
 [tool.poetry.group.gpu.dependencies]
-torch = {version = "^2.1.2", source = "pytorch-gpu"}
-torchvision = {version = "^0.16.2", source = "pytorch-gpu"}
+torch = "^2.1.2"
+torchvision = "^0.16.2"
 
 # Optional dependencies for advanced features
 [tool.poetry.group.optional.dependencies]
@@ -123,10 +123,11 @@ spacy = "^3.7.2"
 # Additional ML tools
 torchtext = "^0.16.2"
 
-[[tool.poetry.source]]
-name = "pytorch-gpu"
-url = "https://download.pytorch.org/whl/cu118"
-priority = "explicit"
+# Commenting out GPU-specific PyTorch source for M1 Mac compatibility
+# [[tool.poetry.source]]
+# name = "pytorch-gpu"
+# url = "https://download.pytorch.org/whl/cu118"
+# priority = "explicit"
 
 [build-system]
 requires = ["poetry-core"]
@@ -154,6 +155,10 @@ extend-exclude = '''
 profile = "black"
 multi_line_output = 3
 line_length = 88
+
+[tool.flake8]
+max-line-length = 88
+extend-ignore = ["E203", "W503"]
 
 [tool.mypy]
 python_version = "3.11"

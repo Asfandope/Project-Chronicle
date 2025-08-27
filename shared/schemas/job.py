@@ -1,20 +1,24 @@
-from pydantic import BaseModel
-from typing import Optional, Dict, Any, List
 from datetime import datetime
-from uuid import UUID
 from enum import Enum
+from typing import Dict, List, Optional
+from uuid import UUID
+
+from pydantic import BaseModel
+
 
 class JobStatus(str, Enum):
     PENDING = "pending"
-    IN_PROGRESS = "in_progress" 
+    IN_PROGRESS = "in_progress"
     COMPLETED = "completed"
     FAILED = "failed"
     QUARANTINED = "quarantined"
 
+
 class JobCreate(BaseModel):
     filename: str
     brand: Optional[str] = None
-    
+
+
 class JobResponse(BaseModel):
     id: UUID
     filename: str
@@ -34,9 +38,10 @@ class JobResponse(BaseModel):
     images_output_directory: Optional[str] = None
     error_message: Optional[str] = None
     quarantine_reason: Optional[str] = None
-    
+
     class Config:
         from_attributes = True
+
 
 class JobListResponse(BaseModel):
     jobs: List[JobResponse]

@@ -9,33 +9,31 @@ Targets 99.5%+ classification accuracy with brand-specific optimization.
 # Core layout analysis
 from .analyzer import LayoutAnalyzer, LayoutResult, PageLayout
 from .classifier import BlockClassifier, BlockType, TextBlock
-from .visualizer import LayoutVisualizer
 
 # Advanced LayoutLM integration
 from .layoutlm import LayoutLMClassifier
-from .understanding import LayoutUnderstandingSystem
-from .optimizer import AccuracyOptimizer, AccuracyMetrics
+from .optimizer import AccuracyMetrics, AccuracyOptimizer
 
 # Type definitions
 from .types import (
-    LayoutError,
     BoundingBox,
     ClassificationRule,
     LayoutConfig,
-    VisualizationConfig
+    LayoutError,
+    VisualizationConfig,
 )
+from .understanding import LayoutUnderstandingSystem
+from .visualizer import LayoutVisualizer
 
 __all__ = [
     # Core classes
     "LayoutAnalyzer",
-    "BlockClassifier", 
+    "BlockClassifier",
     "LayoutVisualizer",
-    
     # Advanced understanding
     "LayoutLMClassifier",
     "LayoutUnderstandingSystem",
     "AccuracyOptimizer",
-    
     # Data types
     "LayoutResult",
     "PageLayout",
@@ -46,7 +44,6 @@ __all__ = [
     "LayoutConfig",
     "VisualizationConfig",
     "AccuracyMetrics",
-    
     # Exceptions
     "LayoutError",
 ]

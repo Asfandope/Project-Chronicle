@@ -1,10 +1,13 @@
-from pydantic import BaseModel
-from typing import Dict, Any, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 from uuid import UUID
+
+from pydantic import BaseModel
+
 
 class ImageExtractionRequest(BaseModel):
     job_id: UUID
     min_size: Optional[Tuple[int, int]] = None
+
 
 class ExtractedImage(BaseModel):
     id: str
@@ -17,11 +20,13 @@ class ExtractedImage(BaseModel):
     file_size: int
     hash: str
 
+
 class ImageCaptionLink(BaseModel):
     caption_block_id: str
     caption_text: str
     confidence: float
     spatial_distance: float
+
 
 class ImageExtractionResponse(BaseModel):
     job_id: UUID

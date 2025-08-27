@@ -6,18 +6,18 @@ of contributors (authors, photographers, illustrators) from document text
 with high-accuracy name extraction and role classification.
 """
 
-from .extractor import ContributorExtractor, ExtractedContributor
-from .classifier import RoleClassifier, ContributorRole
-from .normalizer import NameNormalizer, NormalizedName
-from .patterns import BylinePatterns, CreditPatterns
+from .classifier import ContributorRole, RoleClassifier
 from .edge_cases import EdgeCaseHandler
-from .optimizer import PerformanceOptimizer, OptimizationStrategy
+from .extractor import ContributorExtractor, ExtractedContributor
+from .normalizer import NameNormalizer, NormalizedName
+from .optimizer import OptimizationStrategy, PerformanceOptimizer
+from .patterns import BylinePatterns, CreditPatterns
 from .types import (
-    ExtractionResult,
     ContributorMatch,
     ExtractionConfig,
     ExtractionError,
-    ExtractionMetrics
+    ExtractionMetrics,
+    ExtractionResult,
 )
 
 __all__ = [
@@ -25,16 +25,13 @@ __all__ = [
     "ContributorExtractor",
     "RoleClassifier",
     "NameNormalizer",
-    
     # Pattern matching
     "BylinePatterns",
     "CreditPatterns",
-    
     # Edge case handling and optimization
-    "EdgeCaseHandler", 
+    "EdgeCaseHandler",
     "PerformanceOptimizer",
     "OptimizationStrategy",
-    
     # Data types
     "ExtractedContributor",
     "ContributorRole",
@@ -43,7 +40,6 @@ __all__ = [
     "ContributorMatch",
     "ExtractionConfig",
     "ExtractionMetrics",
-    
     # Exceptions
     "ExtractionError",
 ]

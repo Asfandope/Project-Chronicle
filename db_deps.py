@@ -7,13 +7,13 @@ from modules that depend on the database models.
 
 import os
 from contextlib import contextmanager
+
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, Session
+from sqlalchemy.orm import Session, sessionmaker
 
 # Database configuration
 DATABASE_URL = os.getenv(
-    "DATABASE_URL",
-    "postgresql://postgres:postgres@localhost:5432/magazine_extractor"
+    "DATABASE_URL", "postgresql://postgres:postgres@localhost:5432/magazine_extractor"
 )
 
 # Create engine
@@ -23,7 +23,7 @@ engine = create_engine(
     pool_size=10,
     max_overflow=20,
     pool_pre_ping=True,
-    pool_recycle=3600
+    pool_recycle=3600,
 )
 
 # Create session factory

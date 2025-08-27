@@ -1,11 +1,14 @@
-from pydantic import BaseModel
-from typing import Dict, Any, List, Optional
+from typing import Any, Dict, List, Optional
 from uuid import UUID
+
+from pydantic import BaseModel
+
 
 class LayoutAnalysisRequest(BaseModel):
     job_id: UUID
     file_path: str
     brand_config: Optional[Dict[str, Any]] = None
+
 
 class PageBlock(BaseModel):
     id: str
@@ -14,13 +17,16 @@ class PageBlock(BaseModel):
     text: str
     confidence: float
 
+
 class PageLayout(BaseModel):
     blocks: List[PageBlock]
     page_dimensions: List[int]  # [width, height]
 
+
 class SemanticGraph(BaseModel):
     nodes: List[Dict[str, Any]]
     edges: List[Dict[str, Any]]
+
 
 class LayoutAnalysisResponse(BaseModel):
     job_id: UUID

@@ -1,10 +1,13 @@
-from pydantic import BaseModel
-from typing import Dict, Any, List, Optional
+from typing import Any, Dict, List, Optional
 from uuid import UUID
+
+from pydantic import BaseModel
+
 
 class ArticleReconstructionRequest(BaseModel):
     job_id: UUID
     brand_config: Optional[Dict[str, Any]] = None
+
 
 class Article(BaseModel):
     id: str
@@ -15,11 +18,13 @@ class Article(BaseModel):
     images: List[str]
     confidence: float
 
+
 class ArticleBoundary(BaseModel):
     start_block: str
     end_block: str
     pages: List[int]
     boundary_confidence: float
+
 
 class ArticleReconstructionResponse(BaseModel):
     job_id: UUID

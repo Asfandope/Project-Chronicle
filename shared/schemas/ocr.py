@@ -1,10 +1,13 @@
-from pydantic import BaseModel
-from typing import Dict, Any, List, Optional
+from typing import Any, Dict, List, Optional
 from uuid import UUID
+
+from pydantic import BaseModel
+
 
 class OCRRequest(BaseModel):
     job_id: UUID
     brand_config: Optional[Dict[str, Any]] = None
+
 
 class OCRBlockResult(BaseModel):
     block_id: str
@@ -13,9 +16,11 @@ class OCRBlockResult(BaseModel):
     method: str  # "direct_extraction" or "tesseract_ocr"
     word_confidences: Optional[List[int]] = None
 
+
 class PageOCRResult(BaseModel):
     blocks: List[OCRBlockResult]
     page_confidence: float
+
 
 class OCRResponse(BaseModel):
     job_id: UUID

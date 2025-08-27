@@ -1,10 +1,13 @@
-from pydantic import BaseModel
-from typing import Dict, Any, Optional
+from typing import Any, Dict
 from uuid import UUID
+
+from pydantic import BaseModel
+
 
 class EvaluationRequest(BaseModel):
     job_id: UUID
     brand: str
+
 
 class EvaluationResponse(BaseModel):
     job_id: UUID

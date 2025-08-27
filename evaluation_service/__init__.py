@@ -5,28 +5,35 @@ This package provides a comprehensive FastAPI service for evaluating
 magazine extraction accuracy, detecting drift, and triggering auto-tuning.
 """
 
-from .main import app
+from .drift_detector import DriftDetectionConfig, DriftDetector
 from .evaluation_service import EvaluationService
-from .drift_detector import DriftDetector, DriftDetectionConfig
+from .main import app
 from .models import (
-    EvaluationRun, DocumentEvaluation, ArticleEvaluation,
-    DriftDetection, AutoTuningEvent, SystemHealth
+    ArticleEvaluation,
+    AutoTuningEvent,
+    DocumentEvaluation,
+    DriftDetection,
+    EvaluationRun,
+    SystemHealth,
 )
 from .schemas import (
-    ManualEvaluationRequest, BatchEvaluationRequest,
-    EvaluationRunResponse, DocumentEvaluationResponse,
-    DriftDetectionResponse, AutoTuningEventResponse
+    AutoTuningEventResponse,
+    BatchEvaluationRequest,
+    DocumentEvaluationResponse,
+    DriftDetectionResponse,
+    EvaluationRunResponse,
+    ManualEvaluationRequest,
 )
 
 __version__ = "1.0.0"
 
 __all__ = [
     "app",
-    "EvaluationService", 
+    "EvaluationService",
     "DriftDetector",
     "DriftDetectionConfig",
     "EvaluationRun",
-    "DocumentEvaluation", 
+    "DocumentEvaluation",
     "ArticleEvaluation",
     "DriftDetection",
     "AutoTuningEvent",
@@ -36,5 +43,5 @@ __all__ = [
     "EvaluationRunResponse",
     "DocumentEvaluationResponse",
     "DriftDetectionResponse",
-    "AutoTuningEventResponse"
+    "AutoTuningEventResponse",
 ]

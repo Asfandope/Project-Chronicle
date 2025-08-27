@@ -6,13 +6,14 @@ RUN apt-get update && apt-get install -y \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Poetry
-RUN pip install poetry==1.7.1
+# Install Poetry with reduced memory footprint
+RUN pip install --no-cache-dir poetry==1.7.1
 
 # Configure Poetry
 ENV POETRY_NO_INTERACTION=1 \
     POETRY_VENV_IN_PROJECT=1 \
-    POETRY_CACHE_DIR=/tmp/poetry_cache
+    POETRY_CACHE_DIR=/tmp/poetry_cache \
+    POETRY_INSTALLER_MAX_WORKERS=1
 
 WORKDIR /app
 
@@ -23,7 +24,9 @@ COPY pyproject.toml poetry.lock* ./
 FROM base as development
 
 # Install all dependencies including dev dependencies
-RUN poetry install --no-root && rm -rf $POETRY_CACHE_DIR
+RUN poetry config installer.max-workers 1 && \
+    poetry install --no-root && \
+    rm -rf $POETRY_CACHE_DIR
 
 # Create directories
 RUN mkdir -p /app/{data,logs,outputs,quarantine,temp}
@@ -35,7 +38,9 @@ ENV PYTHONPATH=/app
 FROM base as production
 
 # Install only production dependencies
-RUN poetry install --only=main --no-root && rm -rf $POETRY_CACHE_DIR
+RUN poetry config installer.max-workers 1 && \
+    poetry install --only=main --no-root && \
+    rm -rf $POETRY_CACHE_DIR
 
 # Copy application code
 COPY services/orchestrator/ /app/orchestrator/
