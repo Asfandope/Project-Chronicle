@@ -1,12 +1,20 @@
 FROM python:3.11-slim as base
 
-# Install system dependencies
+# Install system dependencies in stages for better error handling
 RUN apt-get update && apt-get install -y \
     build-essential \
     curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install ML/OCR dependencies in separate stage
+RUN apt-get update && apt-get install -y \
     tesseract-ocr \
     tesseract-ocr-eng \
     libtesseract-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install computer vision dependencies
+RUN apt-get update && apt-get install -y \
     poppler-utils \
     libgl1-mesa-glx \
     libglib2.0-0 \
