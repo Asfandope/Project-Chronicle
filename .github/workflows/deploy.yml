@@ -1,4 +1,4 @@
-name: Deploy to Production
+name: Deploy to AWS
 
 on:
   push:
@@ -6,67 +6,63 @@ on:
     tags: [ 'v*' ]
 
 env:
-  REGISTRY: ghcr.io
-  IMAGE_PREFIX: magazine-pdf-extractor
+  AWS_REGION: eu-north-1
+  AWS_ACCOUNT_ID: 860256742576
 
 jobs:
-  # Build and push Docker images
-  build-and-push:
+  # Trigger AWS CodeBuild projects
+  build-and-deploy:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      packages: write
+      id-token: write
     
     strategy:
       matrix:
         service: [orchestrator, model-service, evaluation]
-        target: [production-cpu, production-gpu]
-        exclude:
-          # Only build GPU images for model service
-          - service: orchestrator
-            target: production-gpu
-          - service: evaluation
-            target: production-gpu
     
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
       
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-      
-      - name: Log in to Container Registry
-        uses: docker/login-action@v3
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
         with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          role-to-assume: arn:aws:iam::${{ env.AWS_ACCOUNT_ID }}:role/github-actions-role
+          aws-region: ${{ env.AWS_REGION }}
       
-      - name: Extract metadata
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ env.IMAGE_PREFIX }}-${{ matrix.service }}
-          tags: |
-            type=ref,event=branch
-            type=ref,event=pr
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=sha,prefix={{branch}}-
-          flavor: |
-            suffix=-${{ matrix.target }}
+      - name: Start CodeBuild project
+        id: codebuild
+        run: |
+          BUILD_ID=$(aws codebuild start-build \
+            --project-name magazine-extractor-${{ matrix.service }}-build \
+            --source-version ${{ github.sha }} \
+            --query 'build.id' --output text)
+          echo "build-id=$BUILD_ID" >> $GITHUB_OUTPUT
+          echo "Started CodeBuild for ${{ matrix.service }}: $BUILD_ID"
       
-      - name: Build and push Docker image
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: services/${{ matrix.service }}/Dockerfile
-          target: ${{ matrix.target }}
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+      - name: Wait for CodeBuild completion
+        run: |
+          echo "Waiting for CodeBuild ${{ steps.codebuild.outputs.build-id }} to complete..."
+          aws codebuild batch-get-builds --ids ${{ steps.codebuild.outputs.build-id }} \
+            --query 'builds[0].buildStatus' --output text
+          
+          # Poll until build completes
+          while true; do
+            STATUS=$(aws codebuild batch-get-builds --ids ${{ steps.codebuild.outputs.build-id }} \
+              --query 'builds[0].buildStatus' --output text)
+            echo "Build status: $STATUS"
+            
+            if [ "$STATUS" = "SUCCEEDED" ]; then
+              echo "✅ Build succeeded for ${{ matrix.service }}"
+              break
+            elif [ "$STATUS" = "FAILED" ] || [ "$STATUS" = "FAULT" ] || [ "$STATUS" = "STOPPED" ] || [ "$STATUS" = "TIMED_OUT" ]; then
+              echo "❌ Build failed for ${{ matrix.service }}: $STATUS"
+              exit 1
+            fi
+            
+            sleep 30
+          done
 
   # Deploy to staging environment
   deploy-staging:
