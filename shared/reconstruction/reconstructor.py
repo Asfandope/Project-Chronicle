@@ -15,7 +15,6 @@ from .resolver import AmbiguityResolver
 from .traversal import GraphTraversal
 from .types import (
     ArticleBoundary,
-    ReconstructedArticle,
     ReconstructionConfig,
     ReconstructionError,
     TraversalPath,
@@ -269,7 +268,7 @@ class ArticleReconstructor:
             split_pages = []
 
             if path.spans_multiple_pages:
-                # This is a simplified detection - in reality would parse the actual text
+                # Simplified detection - in reality would parse actual text
                 split_pages = list(range(path.start_page, path.end_page + 1))
 
             # Calculate quality scores
