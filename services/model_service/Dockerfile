@@ -13,10 +13,14 @@ RUN apt-get update && apt-get install -y \
     libtesseract-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Install PDF and basic graphics dependencies (minimal for MVP)
-RUN apt-get update && apt-get install -y \
+# Install computer vision dependencies with correct package names for Debian Trixie
+RUN apt-get update && apt-get install -y --fix-missing \
     poppler-utils \
-    libglib2.0-0 \
+    libgl1-mesa-dri \
+    libsm6 \
+    libxext6 \
+    libxrender-dev \
+    libgomp1 \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Poetry
