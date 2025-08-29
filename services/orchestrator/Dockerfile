@@ -37,6 +37,11 @@ ENV PYTHONPATH=/app
 # Production stage
 FROM base as production
 
+# Ensure Poetry creates venv in project
+ENV POETRY_NO_INTERACTION=1 \
+    POETRY_VENV_IN_PROJECT=1 \
+    POETRY_CACHE_DIR=/tmp/poetry_cache
+
 # Install only production dependencies
 RUN poetry config installer.max-workers 1 && \
     poetry install --only=main --no-root && \

@@ -51,6 +51,11 @@ ENV PYTHONPATH=/app
 # Production CPU stage
 FROM base as production-cpu
 
+# Ensure Poetry creates venv in project
+ENV POETRY_NO_INTERACTION=1 \
+    POETRY_VENV_IN_PROJECT=1 \
+    POETRY_CACHE_DIR=/tmp/poetry_cache
+
 # Install only production dependencies
 RUN poetry install --only=main --no-root && rm -rf $POETRY_CACHE_DIR
 
@@ -102,15 +107,15 @@ RUN ln -s /usr/bin/python3.11 /usr/bin/python
 # Install Poetry
 RUN pip install poetry==1.7.1
 
-# Configure Poetry
-ENV POETRY_NO_INTERACTION=1 \
-    POETRY_VENV_IN_PROJECT=1 \
-    POETRY_CACHE_DIR=/tmp/poetry_cache
-
 WORKDIR /app
 
 # Copy Poetry configuration
 COPY pyproject.toml poetry.lock* ./
+
+# Configure Poetry - MUST be set before install
+ENV POETRY_NO_INTERACTION=1 \
+    POETRY_VENV_IN_PROJECT=1 \
+    POETRY_CACHE_DIR=/tmp/poetry_cache
 
 # Install production dependencies with GPU support
 RUN poetry install --only=main,gpu --no-root && rm -rf $POETRY_CACHE_DIR
