@@ -178,3 +178,10 @@ test_data/generated/
 
 # Claude Code
 .claude/
+
+# AWS Infrastructure Documentation - SENSITIVE
+AWS_INFRASTRUCTURE.md
+aws-resources-*.md
+infrastructure-*.md
+*.aws-config
+aws-credentials-*

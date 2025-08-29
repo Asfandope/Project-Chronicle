@@ -12,13 +12,16 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements first for better caching
-COPY requirements.txt .
+COPY evaluation_service/requirements.txt .
 
 # Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy application code
-COPY . .
+# Copy application code and required modules
+COPY evaluation_service/ ./evaluation_service/
+COPY synthetic_data/ ./synthetic_data/
+COPY shared/ ./shared/
+COPY database.py ./
 
 # Create logs directory
 RUN mkdir -p logs
