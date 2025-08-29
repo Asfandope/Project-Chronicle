@@ -56,8 +56,12 @@ ENV POETRY_NO_INTERACTION=1 \
     POETRY_VENV_IN_PROJECT=1 \
     POETRY_CACHE_DIR=/tmp/poetry_cache
 
-# Install only production dependencies
-RUN poetry install --only=main --no-root && rm -rf $POETRY_CACHE_DIR
+# Install only production dependencies  
+RUN poetry config virtualenvs.create true && \
+    poetry config virtualenvs.in-project true && \
+    poetry install --only=main --no-root && \
+    ls -la /app/.venv/bin/ && \
+    rm -rf $POETRY_CACHE_DIR
 
 # Copy application code
 COPY services/model_service/ /app/model_service/
@@ -118,7 +122,11 @@ ENV POETRY_NO_INTERACTION=1 \
     POETRY_CACHE_DIR=/tmp/poetry_cache
 
 # Install production dependencies with GPU support
-RUN poetry install --only=main,gpu --no-root && rm -rf $POETRY_CACHE_DIR
+RUN poetry config virtualenvs.create true && \
+    poetry config virtualenvs.in-project true && \
+    poetry install --only=main,gpu --no-root && \
+    ls -la /app/.venv/bin/ && \
+    rm -rf $POETRY_CACHE_DIR
 
 # Copy application code
 COPY services/model_service/ /app/model_service/

@@ -43,8 +43,11 @@ ENV POETRY_NO_INTERACTION=1 \
     POETRY_CACHE_DIR=/tmp/poetry_cache
 
 # Install only production dependencies
-RUN poetry config installer.max-workers 1 && \
+RUN poetry config virtualenvs.create true && \
+    poetry config virtualenvs.in-project true && \
+    poetry config installer.max-workers 1 && \
     poetry install --only=main --no-root && \
+    ls -la /app/.venv/bin/ && \
     rm -rf $POETRY_CACHE_DIR
 
 # Copy application code
