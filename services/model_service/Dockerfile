@@ -61,8 +61,9 @@ COPY shared/ /app/shared/
 # Create directories
 RUN mkdir -p /app/{models,temp,data}
 
-# Set Python path
+# Set Python path and add Poetry venv to PATH
 ENV PYTHONPATH=/app
+ENV PATH="/app/.venv/bin:$PATH"
 
 # Create non-root user
 RUN groupadd -r appuser && useradd -r -g appuser appuser
@@ -121,8 +122,9 @@ COPY shared/ /app/shared/
 # Create directories
 RUN mkdir -p /app/{models,temp,data}
 
-# Set Python path
+# Set Python path and add Poetry venv to PATH
 ENV PYTHONPATH=/app
+ENV PATH="/app/.venv/bin:$PATH"
 
 # Create non-root user
 RUN groupadd -r appuser && useradd -r -g appuser appuser
